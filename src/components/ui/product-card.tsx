@@ -26,14 +26,14 @@ function RatingStars({ rating }: { rating: number }) {
 export default function ProductCard({ product, pageSlug }: ProductCardProps) {
   return (
     <div className="group overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-lg">
-      <div className="relative aspect-video bg-gray-100">
+      <div className="relative aspect-video bg-gray-50">
         {product.image_url ? (
           <Image
             src={product.image_url}
             alt={product.name}
             fill
             sizes="(max-width: 768px) 100vw, 33vw"
-            className="object-cover"
+            className="object-contain p-2"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-gray-400">

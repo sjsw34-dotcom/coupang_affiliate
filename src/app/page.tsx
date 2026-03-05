@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { getPublishedPosts, getPublishedCollections } from '@/lib/queries';
 import { SITE_NAME, SITE_URL, CATEGORIES } from '@/lib/constants';
 
@@ -55,20 +56,33 @@ export default async function Home() {
               <Link
                 key={col.id}
                 href={`/l/${col.slug}`}
-                className="group rounded-lg border-2 border-orange-200 bg-orange-50 p-5 transition-shadow hover:shadow-md"
+                className="group overflow-hidden rounded-lg border-2 border-orange-200 bg-orange-50 transition-shadow hover:shadow-md"
               >
-                <p className="text-xs font-semibold uppercase text-orange-600">추천 리스트</p>
-                <p className="mt-1 text-lg font-bold text-gray-900 group-hover:text-orange-700">
-                  {col.title}
-                </p>
-                {col.meta_description && (
-                  <p className="mt-2 text-sm text-gray-600 line-clamp-2">
-                    {col.meta_description}
-                  </p>
+                {col.thumbnail_url && (
+                  <div className="relative aspect-video bg-gray-100">
+                    <Image
+                      src={col.thumbnail_url}
+                      alt={col.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      className="object-contain"
+                    />
+                  </div>
                 )}
-                <span className="mt-3 inline-block text-sm font-medium text-orange-600">
-                  리스트 보기 →
-                </span>
+                <div className="p-5">
+                  <p className="text-xs font-semibold uppercase text-orange-600">추천 리스트</p>
+                  <p className="mt-1 text-lg font-bold text-gray-900 group-hover:text-orange-700">
+                    {col.title}
+                  </p>
+                  {col.meta_description && (
+                    <p className="mt-2 text-sm text-gray-600 line-clamp-2">
+                      {col.meta_description}
+                    </p>
+                  )}
+                  <span className="mt-3 inline-block text-sm font-medium text-orange-600">
+                    리스트 보기 →
+                  </span>
+                </div>
               </Link>
             ))}
           </div>
@@ -89,19 +103,32 @@ export default async function Home() {
               <Link
                 key={post.id}
                 href={`/blog/${post.slug}`}
-                className="group rounded-lg border border-gray-200 p-4 transition-shadow hover:shadow-md"
+                className="group overflow-hidden rounded-lg border border-gray-200 transition-shadow hover:shadow-md"
               >
-                <p className="font-semibold text-gray-900 group-hover:text-blue-600">
-                  {post.title}
-                </p>
-                {post.excerpt && (
-                  <p className="mt-2 text-sm text-gray-500 line-clamp-2">{post.excerpt}</p>
+                {post.thumbnail_url && (
+                  <div className="relative aspect-video bg-gray-100">
+                    <Image
+                      src={post.thumbnail_url}
+                      alt={post.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, 33vw"
+                      className="object-contain"
+                    />
+                  </div>
                 )}
-                <p className="mt-2 text-xs text-gray-400">
-                  {post.published_at
-                    ? new Date(post.published_at).toLocaleDateString('ko-KR')
-                    : ''}
-                </p>
+                <div className="p-4">
+                  <p className="font-semibold text-gray-900 group-hover:text-blue-600">
+                    {post.title}
+                  </p>
+                  {post.excerpt && (
+                    <p className="mt-2 text-sm text-gray-500 line-clamp-2">{post.excerpt}</p>
+                  )}
+                  <p className="mt-2 text-xs text-gray-400">
+                    {post.published_at
+                      ? new Date(post.published_at).toLocaleDateString('ko-KR')
+                      : ''}
+                  </p>
+                </div>
               </Link>
             ))}
           </div>

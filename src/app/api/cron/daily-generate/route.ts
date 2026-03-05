@@ -1,36 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
+import { generateKeywords } from '@/lib/keyword-generator';
 import { searchProducts } from '@/lib/coupang-api';
 import { generateContent } from '@/lib/content-generator';
 import { getServiceClient } from '@/lib/supabase';
 
-const requestSchema = z.object({
-  keyword: z.string().min(2),
-  slug: z.string().min(3).regex(/^[a-z0-9-]+$/),
-  category_slug: z.enum(['electronics', 'car-accessories', 'camping-outdoor']),
-});
+const CATEGORIES = ['electronics', 'car-accessories', 'camping-outdoor'] as const;
 
-export async function POST(req: NextRequest) {
+// Rotation: each cron run picks one category based on the current 6-hour slot
+// 00:00 → slot 0, 06:00 → slot 1, 12:00 → slot 2, 18:00 → slot 3
+// Categories rotate: elec, car, camping, elec, car, camping, ...
+function getCategoryForSlot(): (typeof CATEGORIES)[number] {
+  const now = new Date();
+  const hour = now.getUTCHours();
+  const slot = Math.floor(hour / 6); // 0, 1, 2, 3
+  return CATEGORIES[slot % CATEGORIES.length];
+}
+
+export async function GET(req: NextRequest) {
   try {
     // Auth check
-    const secret = req.headers.get('x-admin-secret');
-    if (secret !== process.env.ADMIN_SECRET && process.env.ADMIN_SECRET) {
+    const secret = req.headers.get('authorization')?.replace('Bearer ', '');
+    if (!secret || secret !== process.env.CRON_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await req.json();
-    const parsed = requestSchema.safeParse(body);
-    if (!parsed.success) {
+    const supabase = getServiceClient();
+    const categorySlug = getCategoryForSlot();
+
+    // 1. Generate keyword for this category
+    const keywords = await generateKeywords(categorySlug, 1);
+    if (keywords.length === 0) {
       return NextResponse.json(
-        { error: 'Invalid request', details: parsed.error.issues },
-        { status: 400 }
+        { error: 'No new keywords generated', category: categorySlug },
+        { status: 200 }
       );
     }
 
-    const { keyword, slug, category_slug } = parsed.data;
-    const supabase = getServiceClient();
+    const { keyword, slug } = keywords[0];
 
-    // 1. Check for duplicate slug
+    // 2. Check slug doesn't exist
     const { data: existing } = await supabase
       .from('posts')
       .select('id')
@@ -39,33 +47,39 @@ export async function POST(req: NextRequest) {
 
     if (existing) {
       return NextResponse.json(
-        { error: `Post with slug "${slug}" already exists` },
-        { status: 409 }
+        { error: `Slug "${slug}" already exists`, category: categorySlug },
+        { status: 200 }
       );
     }
 
-    // 2. Get category ID
+    // 3. Get category ID
     const { data: category } = await supabase
       .from('categories')
       .select('id')
-      .eq('slug', category_slug)
+      .eq('slug', categorySlug)
       .single();
 
     if (!category) {
-      return NextResponse.json({ error: 'Category not found' }, { status: 400 });
+      return NextResponse.json({ error: 'Category not found' }, { status: 500 });
     }
 
-    // 3. Search Coupang
+    // 4. Search Coupang
     const coupangResult = await searchProducts(keyword, 5);
-
     if (coupangResult.products.length === 0) {
-      return NextResponse.json({ error: 'No products found on Coupang' }, { status: 404 });
+      // Log job as failed
+      await supabase.from('daily_jobs').insert({
+        job_type: 'post_generate',
+        status: 'failed',
+        result_json: { keyword, slug, category: categorySlug, error: 'No products found' },
+      });
+      return NextResponse.json({ error: 'No products found', keyword }, { status: 200 });
     }
 
-    // 4. Generate content with Claude
+    // 5. Generate content
     const generated = await generateContent(keyword, slug, coupangResult);
 
-    // 5. Insert products
+    // 6. Insert products
+    const firstProductImage = coupangResult.products[0]?.productImage ?? null;
     const productInserts = generated.products.map((p, i) => ({
       name: p.name,
       brand: p.brand,
@@ -87,15 +101,16 @@ export async function POST(req: NextRequest) {
       .select('id');
 
     if (prodError || !insertedProducts) {
-      return NextResponse.json(
-        { error: 'Failed to insert products', details: prodError?.message },
-        { status: 500 }
-      );
+      await supabase.from('daily_jobs').insert({
+        job_type: 'post_generate',
+        status: 'failed',
+        result_json: { keyword, slug, error: prodError?.message },
+      });
+      return NextResponse.json({ error: 'Failed to insert products' }, { status: 500 });
     }
 
-    // 6. Insert collection (use first product image as thumbnail)
+    // 7. Insert collection
     const collectionSlug = `${slug}-top`;
-    const firstProductImage = coupangResult.products[0]?.productImage ?? null;
     const { data: collection, error: colError } = await supabase
       .from('collections')
       .insert({
@@ -113,24 +128,20 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (colError || !collection) {
-      return NextResponse.json(
-        { error: 'Failed to insert collection', details: colError?.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Failed to insert collection' }, { status: 500 });
     }
 
-    // 7. Insert collection_products
-    const collectionProductInserts = insertedProducts.map((prod, i) => ({
+    // 8. Insert collection_products
+    const cpInserts = insertedProducts.map((prod, i) => ({
       collection_id: collection.id,
       product_id: prod.id,
       rank: generated.products[i]?.rank ?? i + 1,
       pick_label: generated.products[i]?.pick_label ?? null,
       mini_review: generated.products[i]?.mini_review ?? null,
     }));
+    await supabase.from('collection_products').insert(cpInserts);
 
-    await supabase.from('collection_products').insert(collectionProductInserts);
-
-    // 8. Insert post (use first product image as thumbnail)
+    // 9. Insert post
     const { data: post, error: postError } = await supabase
       .from('posts')
       .insert({
@@ -156,25 +167,37 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (postError || !post) {
-      return NextResponse.json(
-        { error: 'Failed to insert post', details: postError?.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: 'Failed to insert post' }, { status: 500 });
     }
 
-    // 9. Insert post_products
-    const postProductInserts = insertedProducts.map((prod, i) => ({
+    // 10. Insert post_products
+    const ppInserts = insertedProducts.map((prod, i) => ({
       post_id: post.id,
       product_id: prod.id,
       display_order: i + 1,
     }));
+    await supabase.from('post_products').insert(ppInserts);
 
-    await supabase.from('post_products').insert(postProductInserts);
+    // 11. Log success
+    await supabase.from('daily_jobs').insert({
+      job_type: 'post_generate',
+      status: 'done',
+      result_json: {
+        keyword,
+        slug,
+        category: categorySlug,
+        products_count: insertedProducts.length,
+        post_url: `/blog/${slug}`,
+        collection_url: `/l/${collectionSlug}`,
+      },
+      completed_at: new Date().toISOString(),
+    });
 
     return NextResponse.json({
       ok: true,
-      post_slug: slug,
-      collection_slug: collectionSlug,
+      keyword,
+      slug,
+      category: categorySlug,
       products_count: insertedProducts.length,
       urls: {
         post: `/blog/${slug}`,

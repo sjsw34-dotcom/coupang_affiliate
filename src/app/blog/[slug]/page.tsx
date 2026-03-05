@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import Image from 'next/image';
 import type { Metadata } from 'next';
 import {
   getPostBySlug,
@@ -190,6 +191,20 @@ export default async function BlogPost({ params }: Props) {
 
       {/* Title */}
       <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">{post.title}</h1>
+
+      {/* Thumbnail */}
+      {post.thumbnail_url && (
+        <div className="relative mt-4 aspect-video w-full overflow-hidden rounded-lg bg-gray-50">
+          <Image
+            src={post.thumbnail_url}
+            alt={post.title}
+            fill
+            sizes="(max-width: 768px) 100vw, 768px"
+            className="object-contain"
+            priority
+          />
+        </div>
+      )}
 
       {/* Post Meta */}
       <div className="mt-3">

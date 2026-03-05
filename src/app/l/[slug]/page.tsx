@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import Image from 'next/image';
 import type { Metadata } from 'next';
 import {
   getCollectionBySlug,
@@ -199,7 +200,18 @@ export default async function ListPage({ params }: Props) {
                 )}
               </div>
 
-              {/* Product Info */}
+              {/* Product Image + Info */}
+              {rp.product.image_url && (
+                <div className="relative mt-3 aspect-video w-full overflow-hidden rounded-lg bg-gray-50">
+                  <Image
+                    src={rp.product.image_url}
+                    alt={rp.product.name}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 640px"
+                    className="object-contain"
+                  />
+                </div>
+              )}
               <h3 className="mt-3 text-lg font-bold text-gray-900">{rp.product.name}</h3>
               {rp.product.brand && (
                 <p className="mt-0.5 text-sm text-gray-400">{rp.product.brand}</p>
