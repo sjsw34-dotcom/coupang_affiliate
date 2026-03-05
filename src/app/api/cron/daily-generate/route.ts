@@ -86,7 +86,7 @@ async function generateOnePost(
     brand: p.brand,
     category_id: category.id,
     image_url: coupangResult.products[i]?.productImage ?? null,
-    price: p.price,
+    price: coupangResult.products[i]?.productPrice ?? p.price,
     affiliate_url: coupangResult.products[i]?.productUrl ?? coupangResult.landingUrl,
     affiliate_type: 'search' as const,
     search_keyword: keyword,
