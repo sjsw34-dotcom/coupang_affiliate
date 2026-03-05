@@ -63,9 +63,23 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Generate content with Claude
-    const generated = await generateContent(keyword, slug, coupangResult);
+    const generated = await generateContent(keyword, slug, coupangResult, category_slug);
 
-    // 5. Insert products
+    // 5. Build template data to embed in content
+    const templateData = {
+      hero_subtitle: generated.hero_subtitle,
+      urgency: generated.urgency,
+      situation_picks: generated.situation_picks,
+      products_extra: generated.products.map((p) => ({
+        emotion_summary: p.emotion_summary,
+        spec_descriptions: p.spec_descriptions,
+        editor_comment: p.editor_comment,
+      })),
+    };
+    const contentWithTemplate = `<!--TEMPLATE:${JSON.stringify(templateData)}-->\n${generated.content}`;
+
+    // 6. Insert products (pros=target_audience, cons=cautions)
+    const firstProductImage = coupangResult.products[0]?.productImage ?? null;
     const productInserts = generated.products.map((p, i) => ({
       name: p.name,
       brand: p.brand,
@@ -75,9 +89,9 @@ export async function POST(req: NextRequest) {
       affiliate_url: coupangResult.products[i]?.productUrl ?? coupangResult.landingUrl,
       affiliate_type: 'search' as const,
       search_keyword: keyword,
-      badge: i === 0 ? '최고 추천' : i === 1 ? '가성비 추천' : null,
-      pros: p.pros,
-      cons: p.cons,
+      badge: p.pick_label,
+      pros: p.target_audience,
+      cons: p.cautions,
       is_active: true,
     }));
 
@@ -93,16 +107,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 6. Insert collection (use first product image as thumbnail)
+    // 7. Insert collection
     const collectionSlug = `${slug}-top`;
-    const firstProductImage = coupangResult.products[0]?.productImage ?? null;
     const { data: collection, error: colError } = await supabase
       .from('collections')
       .insert({
         slug: collectionSlug,
         title: `${keyword} TOP ${generated.products.length}`,
         meta_description: generated.meta_description,
-        description: generated.excerpt,
+        description: generated.hero_subtitle,
         category_id: category.id,
         thumbnail_url: firstProductImage,
         status: 'published',
@@ -119,18 +132,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 7. Insert collection_products
+    // 8. Insert collection_products (mini_review=emotion_summary)
     const collectionProductInserts = insertedProducts.map((prod, i) => ({
       collection_id: collection.id,
       product_id: prod.id,
       rank: generated.products[i]?.rank ?? i + 1,
       pick_label: generated.products[i]?.pick_label ?? null,
-      mini_review: generated.products[i]?.mini_review ?? null,
+      mini_review: generated.products[i]?.emotion_summary ?? null,
     }));
 
     await supabase.from('collection_products').insert(collectionProductInserts);
 
-    // 8. Insert post (use first product image as thumbnail)
+    // 9. Insert post
     const { data: post, error: postError } = await supabase
       .from('posts')
       .insert({
@@ -139,8 +152,8 @@ export async function POST(req: NextRequest) {
         meta_description: generated.meta_description,
         category_id: category.id,
         primary_collection_id: collection.id,
-        content: generated.content,
-        excerpt: generated.excerpt,
+        content: contentWithTemplate,
+        excerpt: generated.hero_subtitle,
         thumbnail_url: firstProductImage,
         status: 'published',
         published_at: new Date().toISOString(),
@@ -162,7 +175,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 9. Insert post_products
+    // 10. Insert post_products
     const postProductInserts = insertedProducts.map((prod, i) => ({
       post_id: post.id,
       product_id: prod.id,

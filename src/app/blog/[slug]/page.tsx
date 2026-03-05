@@ -7,26 +7,49 @@ import {
   getProductsByIds,
   getHubById,
   getCollectionById,
+  getCollectionProducts,
   getCategoryById,
   getAllPublishedPostSlugs,
 } from '@/lib/queries';
 import { SITE_URL } from '@/lib/constants';
-import Breadcrumb from '@/components/ui/breadcrumb';
 import PostMeta from '@/components/ui/post-meta';
 import AuthorBox from '@/components/ui/author-box';
 import AffiliateDisclosure from '@/components/ui/affiliate-disclosure';
-import HubCard from '@/components/ui/hub-card';
-import CollectionCTACard from '@/components/ui/collection-cta-card';
 import FAQAccordion from '@/components/ui/faq-accordion';
 import ProductCard from '@/components/ui/product-card';
+import EditorPickCard from '@/components/ui/editor-pick-card';
+import UrgencyBanner from '@/components/ui/urgency-banner';
+import SituationPicks from '@/components/ui/situation-picks';
+import FinalCtaBanner from '@/components/ui/final-cta-banner';
 import MarkdownRenderer from '@/components/blog/markdown-renderer';
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
-// SSG: pre-render all published post slugs at build time
-// Falls back to on-demand rendering if Supabase is unavailable (dynamicParams defaults to true)
+interface TemplateData {
+  hero_subtitle?: string;
+  urgency?: { title: string; points: string[] };
+  situation_picks?: { situation: string; product_name: string; product_index: number }[];
+  products_extra?: {
+    emotion_summary: string;
+    spec_descriptions: string[];
+    editor_comment: string;
+  }[];
+}
+
+function parseTemplateData(content: string): { templateData: TemplateData; cleanContent: string } {
+  const match = content.match(/^<!--TEMPLATE:([\s\S]*?)-->\n?/);
+  if (!match) return { templateData: {}, cleanContent: content };
+  try {
+    const templateData = JSON.parse(match[1]) as TemplateData;
+    const cleanContent = content.slice(match[0].length);
+    return { templateData, cleanContent };
+  } catch {
+    return { templateData: {}, cleanContent: content };
+  }
+}
+
 export async function generateStaticParams() {
   try {
     const slugs = await getAllPublishedPostSlugs();
@@ -69,7 +92,6 @@ export default async function BlogPost({ params }: Props) {
   const post = await getPostBySlug(slug);
   if (!post) notFound();
 
-  // Fetch related data in parallel
   const [postProducts, hub, collection, category] = await Promise.all([
     getPostProducts(post.id),
     post.hub_id ? getHubById(post.hub_id) : null,
@@ -80,6 +102,30 @@ export default async function BlogPost({ params }: Props) {
   const productIds = postProducts.map((pp) => pp.product_id);
   const products = await getProductsByIds(productIds);
 
+  // Get collection products for mini_review data
+  let collectionMiniReviews: Record<string, string> = {};
+  if (collection) {
+    const cp = await getCollectionProducts(collection.id);
+    collectionMiniReviews = Object.fromEntries(
+      cp.filter((c) => c.mini_review).map((c) => [c.product_id, c.mini_review!])
+    );
+  }
+
+  // Parse template data from content
+  const { templateData, cleanContent } = parseTemplateData(post.content);
+
+  // Sort products by display_order
+  const sortedProducts = postProducts
+    .sort((a, b) => a.display_order - b.display_order)
+    .map((pp) => products.find((p) => p.id === pp.product_id))
+    .filter((p): p is NonNullable<typeof p> => p !== null);
+
+  const topProduct = sortedProducts[0];
+  const secondProduct = sortedProducts[1];
+
+  // Hero subtitle from template data or excerpt
+  const heroSubtitle = templateData.hero_subtitle || post.excerpt;
+
   // Breadcrumbs
   const breadcrumbs = [
     { label: '홈', href: '/' },
@@ -88,7 +134,7 @@ export default async function BlogPost({ params }: Props) {
     { label: post.title, href: `/blog/${slug}` },
   ];
 
-  // JSON-LD: Article
+  // JSON-LD
   const articleJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
@@ -97,38 +143,11 @@ export default async function BlogPost({ params }: Props) {
     datePublished: post.published_at,
     dateModified: post.updated_at ?? post.published_at,
     url: `${SITE_URL}/blog/${slug}`,
-    author: {
-      '@type': 'Person',
-      name: post.author_name,
-      description: post.author_bio,
-    },
-    publisher: {
-      '@type': 'Organization',
-      name: SITE_URL.replace('https://', ''),
-    },
-    mainEntityOfPage: {
-      '@type': 'WebPage',
-      '@id': `${SITE_URL}/blog/${slug}`,
-    },
+    author: { '@type': 'Person', name: post.author_name, description: post.author_bio },
+    publisher: { '@type': 'Organization', name: SITE_URL.replace('https://', '') },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': `${SITE_URL}/blog/${slug}` },
   };
 
-  // JSON-LD: FAQPage (if faq exists)
-  const faqJsonLd = post.faq_json && post.faq_json.length > 0
-    ? {
-        '@context': 'https://schema.org',
-        '@type': 'FAQPage',
-        mainEntity: post.faq_json.map((faq) => ({
-          '@type': 'Question',
-          name: faq.question,
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: faq.answer,
-          },
-        })),
-      }
-    : null;
-
-  // JSON-LD: BreadcrumbList
   const breadcrumbJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -140,38 +159,28 @@ export default async function BlogPost({ params }: Props) {
     })),
   };
 
-  // JSON-LD: Person (author)
-  const personJsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'Person',
-    name: post.author_name,
-    description: post.author_bio,
-    image: post.author_image_url,
-  };
+  const faqJsonLd = post.faq_json && post.faq_json.length > 0
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: post.faq_json.map((faq) => ({
+          '@type': 'Question',
+          name: faq.question,
+          acceptedAnswer: { '@type': 'Answer', text: faq.answer },
+        })),
+      }
+    : null;
 
   return (
     <article className="mx-auto max-w-3xl">
-      {/* JSON-LD scripts */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(personJsonLd) }}
-      />
+      {/* JSON-LD */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
       {faqJsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-        />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
       )}
 
-      {/* Breadcrumb (visual, without duplicate JSON-LD) */}
+      {/* Breadcrumb */}
       <nav aria-label="breadcrumb" className="mb-4 text-sm text-gray-500">
         <ol className="flex flex-wrap items-center gap-1">
           {breadcrumbs.map((item, i) => (
@@ -180,59 +189,107 @@ export default async function BlogPost({ params }: Props) {
               {i === breadcrumbs.length - 1 ? (
                 <span className="text-gray-900">{item.label}</span>
               ) : (
-                <a href={item.href} className="hover:text-gray-900">
-                  {item.label}
-                </a>
+                <a href={item.href} className="hover:text-gray-900">{item.label}</a>
               )}
             </li>
           ))}
         </ol>
       </nav>
 
-      {/* Title */}
-      <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">{post.title}</h1>
-
-      {/* Thumbnail */}
-      {post.thumbnail_url && (
-        <div className="relative mt-4 aspect-video w-full overflow-hidden rounded-lg bg-gray-50">
-          <Image
-            src={post.thumbnail_url}
-            alt={post.title}
-            fill
-            sizes="(max-width: 768px) 100vw, 768px"
-            className="object-contain"
-            priority
+      {/* Hero Section */}
+      <section className="relative mb-8">
+        {heroSubtitle && (
+          <p className="text-sm text-gray-500 leading-relaxed">{heroSubtitle}</p>
+        )}
+        <h1 className="mt-2 text-2xl font-bold text-gray-900 md:text-3xl leading-tight">
+          {post.title}
+        </h1>
+        <div className="mt-3">
+          <PostMeta
+            published_at={post.published_at}
+            updated_at={post.updated_at}
+            reading_time_min={post.reading_time_min}
+            author_name={post.author_name}
           />
         </div>
+        {/* Hero Image */}
+        {post.thumbnail_url && (
+          <div className="relative mt-5 aspect-video w-full overflow-hidden rounded-2xl bg-gray-50">
+            <Image
+              src={post.thumbnail_url}
+              alt={post.title}
+              fill
+              sizes="(max-width: 768px) 100vw, 768px"
+              className="object-contain"
+              priority
+            />
+          </div>
+        )}
+      </section>
+
+      {/* 1st CTA — Editor Pick */}
+      {topProduct && (
+        <EditorPickCard
+          product={topProduct}
+          emotionSummary={
+            templateData.products_extra?.[0]?.emotion_summary
+            ?? collectionMiniReviews[topProduct.id]
+          }
+          editorComment={templateData.products_extra?.[0]?.editor_comment}
+          pageSlug={slug}
+        />
       )}
 
-      {/* Post Meta */}
-      <div className="mt-3">
-        <PostMeta
-          published_at={post.published_at}
-          updated_at={post.updated_at}
-          reading_time_min={post.reading_time_min}
-          author_name={post.author_name}
-        />
-      </div>
+      {/* Editorial Content (markdown) */}
+      <MarkdownRenderer content={cleanContent} />
 
-      {/* Markdown Content with auto-injected HubCard and CollectionCTACard */}
-      <MarkdownRenderer
-        content={post.content}
-        hubCard={hub ? <HubCard hub={hub} /> : undefined}
-        collectionCard={collection ? <CollectionCTACard collection={collection} /> : undefined}
-      />
-
-      {/* Related Products */}
-      {products.length > 0 && (
+      {/* Product Cards — new emotion-first design */}
+      {sortedProducts.length > 0 && (
         <section className="mt-10">
-          <h2 className="text-lg font-bold text-gray-900">관련 제품</h2>
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} pageSlug={slug} />
+          <h2 className="mb-6 text-xl font-bold text-gray-900">추천 제품 상세</h2>
+          <div className="space-y-6">
+            {sortedProducts.map((product, i) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                emotionSummary={
+                  templateData.products_extra?.[i]?.emotion_summary
+                  ?? collectionMiniReviews[product.id]
+                }
+                specDescriptions={templateData.products_extra?.[i]?.spec_descriptions}
+                editorComment={templateData.products_extra?.[i]?.editor_comment}
+                pageSlug={slug}
+              />
             ))}
           </div>
         </section>
+      )}
+
+      {/* Situation Picks — 상황별 추천 */}
+      {templateData.situation_picks && templateData.situation_picks.length > 0 && (
+        <SituationPicks
+          picks={templateData.situation_picks}
+          products={sortedProducts}
+          pageSlug={slug}
+        />
+      )}
+
+      {/* Urgency Banner */}
+      {templateData.urgency && (
+        <UrgencyBanner
+          title={templateData.urgency.title}
+          points={templateData.urgency.points}
+        />
+      )}
+
+      {/* Final CTA Banner */}
+      {topProduct && (
+        <FinalCtaBanner
+          urgencyTitle={templateData.urgency?.title ?? ''}
+          topProduct={topProduct}
+          secondProduct={secondProduct}
+          pageSlug={slug}
+        />
       )}
 
       {/* FAQ */}

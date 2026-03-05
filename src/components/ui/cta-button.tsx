@@ -12,11 +12,11 @@ interface CTAButtonProps {
 
 const variantStyles = {
   primary:
-    'bg-[#F05A28] text-white hover:bg-[#d94e20] font-bold w-full md:w-auto',
+    'bg-[#1A73E8] text-white hover:bg-[#1557b0] font-bold w-full md:w-auto min-h-[48px]',
   secondary:
-    'border border-[#F05A28] text-[#F05A28] hover:bg-orange-50 text-sm',
+    'border-2 border-[#1A73E8] text-[#1A73E8] hover:bg-blue-50 font-medium min-h-[48px]',
   outline:
-    'border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm',
+    'border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm min-h-[48px]',
 };
 
 export default function CTAButton({

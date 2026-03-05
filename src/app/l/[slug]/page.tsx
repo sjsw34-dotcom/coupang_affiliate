@@ -188,74 +188,80 @@ export default async function ListPage({ params }: Props) {
               <div className="flex items-center gap-3">
                 <span
                   className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
-                    isTop ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-600'
+                    isTop ? 'bg-[#F5A623] text-white' : 'bg-gray-200 text-gray-600'
                   }`}
                 >
                   {rp.rank}
                 </span>
                 {rp.pick_label && (
-                  <span className={`text-sm font-bold ${isTop ? 'text-orange-600' : 'text-blue-600'}`}>
+                  <span className={`text-sm font-bold ${isTop ? 'text-[#F5A623]' : 'text-blue-600'}`}>
                     {rp.pick_label}
                   </span>
                 )}
               </div>
 
-              {/* Product Image + Info */}
+              {/* Product Image */}
               {rp.product.image_url && (
-                <div className="relative mt-3 aspect-video w-full overflow-hidden rounded-lg bg-gray-50">
+                <div className="relative mt-3 aspect-video w-full overflow-hidden rounded-xl bg-gray-50">
                   <Image
                     src={rp.product.image_url}
                     alt={rp.product.name}
                     fill
                     sizes="(max-width: 768px) 100vw, 640px"
-                    className="object-contain"
+                    className="object-contain p-3"
                   />
                 </div>
               )}
+
+              {/* Name + Emotion Summary */}
               <h3 className="mt-3 text-lg font-bold text-gray-900">{rp.product.name}</h3>
               {rp.product.brand && (
-                <p className="mt-0.5 text-sm text-gray-400">{rp.product.brand}</p>
+                <p className="mt-0.5 text-xs text-gray-400">{rp.product.brand}</p>
               )}
               {rp.mini_review && (
-                <p className="mt-2 text-sm text-gray-600 leading-relaxed">{rp.mini_review}</p>
+                <p className="mt-2 text-sm text-gray-600 italic">
+                  &ldquo;{rp.mini_review}&rdquo;
+                </p>
               )}
 
-              {/* Pros & Cons */}
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {rp.product.pros.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-green-700">장점</p>
-                    <ul className="mt-1 space-y-0.5 text-sm text-gray-600">
-                      {rp.product.pros.map((pro, i) => (
-                        <li key={i}>+ {pro}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {rp.product.cons.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-red-700">단점</p>
-                    <ul className="mt-1 space-y-0.5 text-sm text-gray-600">
-                      {rp.product.cons.map((con, i) => (
-                        <li key={i}>- {con}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
+              {/* Target Audience */}
+              {rp.product.pros.length > 0 && (
+                <div className="mt-4">
+                  <p className="mb-2 text-xs font-bold text-gray-500 tracking-wider">── 이런 분께 딱 맞습니다 ──</p>
+                  <ul className="space-y-1">
+                    {rp.product.pros.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                        <span className="mt-0.5 text-[#27AE60]">✓</span>{item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Cautions */}
+              {rp.product.cons.length > 0 && (
+                <div className="mt-3">
+                  <p className="mb-2 text-xs font-bold text-gray-500 tracking-wider">── 알아두세요 ──</p>
+                  <ul className="space-y-1">
+                    {rp.product.cons.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-gray-500">
+                        <span className="mt-0.5">△</span>{item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Price + CTAs */}
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                {rp.product.price && (
-                  <span className="text-lg font-bold text-gray-900">
-                    ₩{formatPrice(rp.product.price)}
-                  </span>
-                )}
-              </div>
+              {rp.product.price && (
+                <p className="mt-4 text-xl font-bold text-gray-900">
+                  ₩{formatPrice(rp.product.price)}
+                </p>
+              )}
               <div className="mt-3 flex flex-wrap gap-2">
                 <CTAButton
                   href={rp.product.affiliate_url}
-                  label="오늘 가격 확인하기"
+                  label="최저가 확인하기"
                   variant="primary"
                   productId={rp.product.id}
                   pageSlug={slug}
