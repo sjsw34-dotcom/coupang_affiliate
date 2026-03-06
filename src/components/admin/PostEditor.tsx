@@ -334,6 +334,8 @@ export default function PostEditor({
   const [saved, setSaved] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [slugManual, setSlugManual] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState('');
 
   // Auto-generate slug from title when not manually edited
   useEffect(() => {
@@ -439,6 +441,63 @@ export default function PostEditor({
     }
   }, [form.id, router]);
 
+  // AI Generate
+  const handleAiGenerate = useCallback(async () => {
+    const keyword = form.primary_keyword || form.title;
+    if (!keyword) {
+      alert('키워드 또는 제목을 먼저 입력해주세요.');
+      return;
+    }
+    if (!form.category_id) {
+      alert('카테고리를 먼저 선택해주세요.');
+      return;
+    }
+    if (form.content && !window.confirm('기존 내용이 덮어씌워집니다. 계속하시겠습니까?')) {
+      return;
+    }
+
+    setGenerating(true);
+    setGenError('');
+    try {
+      const res = await fetch('/api/admin/ai-generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          keyword,
+          category_id: form.category_id,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'AI 생성 실패');
+      }
+
+      const data = await res.json();
+
+      setForm(prev => ({
+        ...prev,
+        title: data.title || prev.title,
+        slug: data.slug || prev.slug,
+        content: data.content || prev.content,
+        meta_description: data.meta_description || prev.meta_description,
+        excerpt: data.excerpt || prev.excerpt,
+        primary_keyword: data.primary_keyword || prev.primary_keyword,
+        secondary_keywords: data.secondary_keywords || prev.secondary_keywords,
+        faq_json: data.faq_json || prev.faq_json,
+      }));
+      setSecondaryKeywordsInput((data.secondary_keywords || []).join(', '));
+      setSlugManual(true);
+      setSaved(false);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'AI 생성 중 오류';
+      setGenError(msg);
+      alert(msg);
+    } finally {
+      setGenerating(false);
+    }
+  }, [form.primary_keyword, form.title, form.category_id, form.content]);
+
   // Toolbar handler
   const handleToolbar = useCallback((action: ToolbarAction['action']) => {
     const ta = textareaRef.current;
@@ -510,6 +569,22 @@ export default function PostEditor({
             placeholder="제목을 입력하세요"
             className="w-full rounded border border-gray-300 bg-white px-4 py-3 text-xl font-bold text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
+
+          {/* AI Generate Button */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleAiGenerate}
+              disabled={generating}
+              className="rounded-lg bg-purple-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50 transition-colors"
+            >
+              {generating ? 'AI 글 생성 중... (30초~1분 소요)' : 'AI 자동 작성'}
+            </button>
+            <span className="text-xs text-gray-400">
+              키워드 또는 제목 + 카테고리 입력 후 클릭
+            </span>
+            {genError && <span className="text-xs text-red-500">{genError}</span>}
+          </div>
 
           {/* Slug */}
           <div className="flex items-center gap-2">
