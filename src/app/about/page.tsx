@@ -102,7 +102,10 @@ export default function AboutPage() {
         <section>
           <h2 className="text-lg font-bold text-gray-900">문의</h2>
           <p className="mt-2">
-            제휴 문의, 제품 리뷰 요청, 또는 피드백은 이메일로 보내주세요.
+            제휴 문의, 제품 리뷰 요청, 또는 피드백은 아래 이메일로 보내주세요.
+          </p>
+          <p className="mt-1 font-medium text-gray-800">
+            contact@yourdomain.com
           </p>
         </section>
       </div>

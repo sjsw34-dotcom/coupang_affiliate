@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { SITE_NAME, NAV_ITEMS, CATEGORIES } from '@/lib/constants';
+import MobileNav from './mobile-nav';
 
 export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-sm">
-      <div className="mx-auto flex max-w-[1280px] items-center justify-between px-4 py-3">
+      <div className="relative mx-auto flex max-w-[1280px] items-center justify-between px-4 py-3">
         <Link href="/" className="text-xl font-bold text-gray-900">
           {SITE_NAME}
         </Link>
@@ -19,6 +20,7 @@ export default function Header() {
             </Link>
           ))}
         </nav>
+        <MobileNav />
       </div>
       {/* Category bar */}
       <div className="border-t border-gray-100 bg-gray-50">

@@ -44,6 +44,9 @@ export default function RootLayout({
 
   return (
     <html lang="ko">
+      <head>
+        <link rel="alternate" hrefLang="ko-KR" href={SITE_URL} />
+      </head>
       <body className={`${notoSansKR.variable} font-sans antialiased`}>
         <script
           type="application/ld+json"
