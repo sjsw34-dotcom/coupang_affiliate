@@ -39,11 +39,11 @@ interface TemplateData {
 }
 
 function parseTemplateData(content: string): { templateData: TemplateData; cleanContent: string } {
-  const match = content.match(/^<!--TEMPLATE:([\s\S]*?)-->\n?/);
+  const match = content.match(/<!--TEMPLATE:([\s\S]*?)-->\n?/);
   if (!match) return { templateData: {}, cleanContent: content };
   try {
     const templateData = JSON.parse(match[1]) as TemplateData;
-    const cleanContent = content.slice(match[0].length);
+    const cleanContent = content.replace(match[0], '');
     return { templateData, cleanContent };
   } catch {
     return { templateData: {}, cleanContent: content };
