@@ -6,12 +6,23 @@ import { getServiceClient } from '@/lib/supabase';
 
 const CATEGORIES = ['electronics', 'car-accessories', 'camping-outdoor'] as const;
 
-// Daily rotation: day 0 → [elec, car, camping, elec], day 1 → [car, camping, elec, car], ...
+// Daily: 4 posts total, rotating categories. Spread across day.
 function getCategoriesForToday(): (typeof CATEGORIES)[number][] {
   const dayOfYear = Math.floor(
     (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
   );
+  // 4 posts, cycling through categories each day
   return Array.from({ length: 4 }, (_, i) => CATEGORIES[(dayOfYear + i) % CATEGORIES.length]);
+}
+
+// Randomize published_at across the day (looks natural to Google)
+function getRandomPublishedAt(): string {
+  const now = new Date();
+  const hours = [7, 10, 14, 19]; // realistic posting hours (KST)
+  const hour = hours[Math.floor(Math.random() * hours.length)];
+  const minute = Math.floor(Math.random() * 50) + 5; // 5~54
+  now.setUTCHours(hour - 9, minute, 0, 0); // KST → UTC
+  return now.toISOString();
 }
 
 interface PostResult {
@@ -150,7 +161,7 @@ async function generateOnePost(
       excerpt: generated.hero_subtitle,
       thumbnail_url: firstProductImage,
       status: 'published',
-      published_at: new Date().toISOString(),
+      published_at: getRandomPublishedAt(),
       word_count: generated.content.length,
       reading_time_min: Math.max(1, Math.round(generated.content.length / 500)),
       faq_json: generated.faq_json,

@@ -61,25 +61,30 @@ export default async function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
       />
 
-      {/* Hero + Category Quick Links */}
-      <section className="pt-6 text-center">
-        <h1 className="text-2xl font-bold text-gray-900 md:text-3xl">
-          검증된 추천, 현명한 소비
-        </h1>
-        <p className="mt-2 text-sm text-gray-500">
-          스펙 비교 분석으로 최적의 제품을 찾아드립니다
+      {/* Hero Banner — gradient, eye-catching */}
+      <section className="-mx-4 -mt-6 overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 px-4 pb-8 pt-10 text-center md:rounded-b-3xl md:pb-10 md:pt-14">
+        <p className="inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-blue-200 backdrop-blur-sm">
+          2026년 3월 추천 업데이트
         </p>
-        <div className="mt-5 flex justify-center gap-3">
+        <h1 className="mt-3 text-2xl font-extrabold leading-tight text-white md:text-4xl">
+          비교하고 고르는<br className="md:hidden" /> 스마트한 쇼핑
+        </h1>
+        <p className="mt-2 text-sm text-blue-200/80 md:text-base">
+          스펙 기반 비교 분석 — 가전, 자동차용품, 캠핑장비
+        </p>
+
+        {/* Category Cards in Hero */}
+        <div className="mx-auto mt-6 grid max-w-xl grid-cols-3 gap-3">
           {categories.map((cat) => {
             const meta = CATEGORY_META[cat.slug];
             return (
               <a
                 key={cat.slug}
                 href={`#cat-${cat.slug}`}
-                className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors ${meta?.border || 'border-gray-200'} ${meta?.bg || 'bg-gray-50'} ${meta?.color || 'text-gray-700'} hover:shadow-sm`}
+                className="group flex flex-col items-center gap-1.5 rounded-2xl bg-white/10 px-3 py-4 backdrop-blur-sm transition-all hover:bg-white/20 hover:scale-105"
               >
-                <span>{meta?.icon}</span>
-                {cat.name}
+                <span className="text-3xl md:text-4xl">{meta?.icon}</span>
+                <span className="text-xs font-semibold text-white md:text-sm">{cat.name}</span>
               </a>
             );
           })}
