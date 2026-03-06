@@ -7,9 +7,9 @@ export default async function AdminPostsPage() {
   const supabase = getServiceClient();
   const { data: posts } = await supabase
     .from('posts')
-    .select('id, slug, title, status, published_at, category_id, primary_keyword, word_count')
+    .select('id, slug, title, status, published_at, created_at, category_id, primary_keyword, word_count')
     .order('created_at', { ascending: false })
-    .limit(100);
+    .limit(200);
 
   const { data: categories } = await supabase
     .from('categories')
@@ -17,11 +17,24 @@ export default async function AdminPostsPage() {
 
   const catMap = new Map(categories?.map((c) => [c.id, c.name]) ?? []);
 
+  const published = posts?.filter((p) => p.status === 'published').length ?? 0;
+  const drafts = posts?.filter((p) => p.status === 'draft').length ?? 0;
+
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">포스트 관리</h1>
-        <span className="text-sm text-gray-400">{posts?.length ?? 0}개</span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">포스트 관리</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            전체 {posts?.length ?? 0}개 · 발행 {published}개 · 임시 {drafts}개
+          </p>
+        </div>
+        <Link
+          href="/admin/posts/new"
+          className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          + 새 글 작성
+        </Link>
       </div>
 
       <div className="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white">
@@ -32,6 +45,7 @@ export default async function AdminPostsPage() {
               <th className="hidden px-4 py-3 font-medium text-gray-500 md:table-cell">카테고리</th>
               <th className="hidden px-4 py-3 font-medium text-gray-500 sm:table-cell">상태</th>
               <th className="hidden px-4 py-3 font-medium text-gray-500 lg:table-cell">글자수</th>
+              <th className="hidden px-4 py-3 font-medium text-gray-500 lg:table-cell">작성일</th>
               <th className="px-4 py-3 font-medium text-gray-500">작업</th>
             </tr>
           </thead>
@@ -59,7 +73,12 @@ export default async function AdminPostsPage() {
                   </span>
                 </td>
                 <td className="hidden px-4 py-3 lg:table-cell">
-                  <span className="text-xs text-gray-400">{post.word_count?.toLocaleString() ?? '-'}</span>
+                  <span className="text-xs text-gray-400">{post.word_count?.toLocaleString() ?? '-'}자</span>
+                </td>
+                <td className="hidden px-4 py-3 lg:table-cell">
+                  <span className="text-xs text-gray-400">
+                    {post.created_at ? new Date(post.created_at).toLocaleDateString('ko-KR') : '-'}
+                  </span>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
@@ -80,6 +99,16 @@ export default async function AdminPostsPage() {
                 </td>
               </tr>
             ))}
+            {(posts ?? []).length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+                  포스트가 없습니다.{' '}
+                  <Link href="/admin/posts/new" className="text-blue-600 hover:underline">
+                    첫 글을 작성해보세요
+                  </Link>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
