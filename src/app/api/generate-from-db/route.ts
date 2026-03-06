@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase';
-import { generateContent } from '@/lib/content-generator';
+import { generateContent, getRecentTemplateIds } from '@/lib/content-generator';
 import { AFFILIATE_DISCLOSURE } from '@/lib/constants';
 import type { CoupangSearchResult } from '@/lib/coupang-api';
 
@@ -28,6 +28,10 @@ export async function POST(req: NextRequest) {
     : categories;
 
   const results: { category: string; keyword: string; slug: string; ok: boolean; error?: string }[] = [];
+
+  // Load recent template IDs to avoid repeats
+  const recentTemplateIds = await getRecentTemplateIds(5);
+  const usedTemplateIds = [...recentTemplateIds];
 
   for (const cat of targetCats) {
     // Get distinct search keywords that have products in this category
@@ -95,11 +99,13 @@ export async function POST(req: NextRequest) {
           })),
         };
 
-        // Generate content via Claude
-        const generated = await generateContent(keyword, slug, fakeResult, cat.slug);
+        // Generate content via Claude (with template rotation)
+        const generated = await generateContent(keyword, slug, fakeResult, cat.slug, usedTemplateIds);
+        usedTemplateIds.push(generated.template_id);
 
         // Build template + disclosure
         const templateData = {
+          template_id: generated.template_id,
           hero_subtitle: generated.hero_subtitle,
           urgency: generated.urgency,
           situation_picks: generated.situation_picks,

@@ -72,8 +72,7 @@ function getSeasonContext(): string {
 }
 
 // 5가지 콘텐츠 구조 템플릿 — Google이 다양한 콘텐츠로 인식하도록
-function getContentTemplate(): { id: number; name: string; structure: string } {
-  const templates = [
+const ALL_TEMPLATES = [
     {
       id: 1,
       name: '감정 시나리오형',
@@ -175,7 +174,36 @@ function getContentTemplate(): { id: number; name: string; structure: string } {
     },
   ];
 
-  return templates[Math.floor(Math.random() * templates.length)];
+// 최근 사용된 템플릿 ID를 제외하고 순환 선택
+function getContentTemplate(excludeIds: number[] = []): { id: number; name: string; structure: string } {
+  const available = ALL_TEMPLATES.filter((t) => !excludeIds.includes(t.id));
+  const pool = available.length > 0 ? available : ALL_TEMPLATES;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// DB에서 최근 N개 포스트의 템플릿 ID를 추출
+export async function getRecentTemplateIds(limit = 5): Promise<number[]> {
+  const { getServiceClient } = await import('./supabase');
+  const supabase = getServiceClient();
+  const { data } = await supabase
+    .from('posts')
+    .select('content')
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+    .limit(limit);
+
+  if (!data) return [];
+  const ids: number[] = [];
+  for (const post of data) {
+    const match = post.content.match(/<!--TEMPLATE:([\s\S]*?)-->/);
+    if (match) {
+      try {
+        const parsed = JSON.parse(match[1]);
+        if (parsed.template_id) ids.push(parsed.template_id);
+      } catch { /* ignore */ }
+    }
+  }
+  return ids;
 }
 
 export async function generateContent(
@@ -183,7 +211,8 @@ export async function generateContent(
   slug: string,
   coupangData: CoupangSearchResult,
   categorySlug?: string,
-): Promise<GeneratedContent> {
+  excludeTemplateIds: number[] = [],
+): Promise<GeneratedContent & { template_id: number }> {
   const productList = coupangData.products
     .slice(0, 5)
     .map(
@@ -199,7 +228,7 @@ export async function generateContent(
 
   const strategy = getCategoryStrategy(categorySlug ?? 'electronics');
   const seasonContext = getSeasonContext();
-  const template = getContentTemplate();
+  const template = getContentTemplate(excludeTemplateIds);
 
   const prompt = `당신은 한국 최고의 제품 리뷰 에디터입니다.
 "먼저 써본 친한 형"처럼 솔직하게, 그러나 프로페셔널하게 씁니다.
@@ -356,5 +385,5 @@ points: 2~3개. 과장 없이 사실 기반.
 
   const parsed = JSON.parse(jsonMatch[0]) as Omit<GeneratedContent, 'slug'>;
 
-  return { ...parsed, slug };
+  return { ...parsed, slug, template_id: template.id };
 }
