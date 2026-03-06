@@ -1,6 +1,7 @@
 'use client';
 
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
 import type { ReactNode } from 'react';
 
@@ -57,11 +58,29 @@ export default function MarkdownRenderer({
         {children}
       </blockquote>
     ),
+    table: ({ children }) => (
+      <div className="my-6 overflow-x-auto rounded-lg border border-gray-200">
+        <table className="w-full min-w-[400px] text-sm">{children}</table>
+      </div>
+    ),
+    thead: ({ children }) => (
+      <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+        {children}
+      </thead>
+    ),
+    tbody: ({ children }) => <tbody className="divide-y divide-gray-100">{children}</tbody>,
+    tr: ({ children }) => <tr className="hover:bg-gray-50 transition-colors">{children}</tr>,
+    th: ({ children }) => (
+      <th className="whitespace-nowrap px-4 py-3 font-semibold text-gray-700">{children}</th>
+    ),
+    td: ({ children }) => (
+      <td className="whitespace-nowrap px-4 py-3 text-gray-700">{children}</td>
+    ),
   };
 
   return (
     <div className="mt-8">
-      <ReactMarkdown components={components}>{content}</ReactMarkdown>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>{content}</ReactMarkdown>
     </div>
   );
 }
