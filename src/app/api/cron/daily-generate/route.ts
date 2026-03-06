@@ -3,6 +3,7 @@ import { generateKeywords } from '@/lib/keyword-generator';
 import { searchProducts } from '@/lib/coupang-api';
 import { generateContent } from '@/lib/content-generator';
 import { getServiceClient } from '@/lib/supabase';
+import { AFFILIATE_DISCLOSURE } from '@/lib/constants';
 
 const CATEGORIES = ['electronics', 'car-accessories', 'camping-outdoor'] as const;
 
@@ -88,7 +89,8 @@ async function generateOnePost(
       editor_comment: p.editor_comment,
     })),
   };
-  const contentWithTemplate = `<!--TEMPLATE:${JSON.stringify(templateData)}-->\n${generated.content}`;
+  const disclosure = `> ${AFFILIATE_DISCLOSURE}\n\n`;
+  const contentWithTemplate = `${disclosure}<!--TEMPLATE:${JSON.stringify(templateData)}-->\n${generated.content}`;
 
   // 6. Insert products (pros=target_audience, cons=cautions)
   const firstProductImage = coupangResult.products[0]?.productImage ?? null;
