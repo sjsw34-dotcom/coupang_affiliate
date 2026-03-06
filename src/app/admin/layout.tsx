@@ -13,7 +13,7 @@ export default async function AdminLayout({
   const secret = process.env.ADMIN_SECRET || process.env.CRON_SECRET;
 
   if (token !== secret) {
-    redirect('/admin/login');
+    redirect('/login');
   }
 
   return (
