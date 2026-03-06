@@ -3,175 +3,159 @@ import Image from 'next/image';
 import {
   getPublishedPosts,
   getCategories,
-  getCollectionsWithStatsByCategory,
+  getPostsByCategory,
 } from '@/lib/queries';
-import type { CollectionWithStats } from '@/lib/queries';
 import { SITE_NAME, SITE_URL } from '@/lib/constants';
-import type { Category } from '@/lib/types';
+import type { Category, Post } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-const CATEGORY_META: Record<string, { icon: string; color: string; bg: string; border: string }> = {
-  electronics: { icon: '💻', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
-  'car-accessories': { icon: '🚗', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-  'camping-outdoor': { icon: '⛺', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
+const CATEGORY_META: Record<string, { icon: string; accent: string; tag: string }> = {
+  electronics: { icon: '💻', accent: 'text-blue-600', tag: 'bg-blue-50 text-blue-700' },
+  'car-accessories': { icon: '🚗', accent: 'text-emerald-600', tag: 'bg-emerald-50 text-emerald-700' },
+  'camping-outdoor': { icon: '⛺', accent: 'text-amber-600', tag: 'bg-amber-50 text-amber-700' },
 };
-
-function formatPrice(price: number): string {
-  if (price >= 10000) {
-    const man = Math.floor(price / 10000);
-    const rest = Math.floor((price % 10000) / 1000);
-    return rest > 0 ? `${man}.${rest}만` : `${man}만`;
-  }
-  return `${price.toLocaleString()}`;
-}
-
-function priceRange(min: number | null, max: number | null): string | null {
-  if (!min && !max) return null;
-  if (min && max && min !== max) return `${formatPrice(min)}~${formatPrice(max)}원대`;
-  if (min) return `${formatPrice(min)}원~`;
-  return null;
-}
 
 export default async function Home() {
   const categories = await getCategories();
 
-  const [collectionsMap, { posts }] = await Promise.all([
+  const [categoryPosts, { posts: latestPosts }] = await Promise.all([
     Promise.all(
       categories.map(async (cat) => ({
         category: cat,
-        collections: await getCollectionsWithStatsByCategory(cat.id, 12),
+        posts: await getPostsByCategory(cat.id, 4),
       }))
     ),
-    getPublishedPosts(6),
+    getPublishedPosts(3),
   ]);
+
+  // Use first post as featured hero
+  const allPosts = categoryPosts.flatMap((cp) => cp.posts);
+  const featured = allPosts[0] ?? latestPosts[0];
+  const featuredCategory = featured
+    ? categories.find((c) => c.id === featured.category_id)
+    : null;
 
   const organizationJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: SITE_NAME,
     url: SITE_URL,
-    description: '가전, 자동차용품, 캠핑용품 추천 및 비교 리뷰 전문 사이트',
+    description: '가전, 자동차용품, 캠핑용품 전문 리뷰 매거진',
   };
 
   return (
-    <div className="space-y-10 pb-4">
+    <div className="pb-8">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
       />
 
-      {/* Hero Banner — gradient, eye-catching */}
-      <section className="-mx-4 -mt-6 overflow-hidden bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 px-4 pb-8 pt-10 text-center md:rounded-b-3xl md:pb-10 md:pt-14">
-        <p className="inline-block rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-blue-200 backdrop-blur-sm">
-          2026년 3월 추천 업데이트
-        </p>
-        <h1 className="mt-3 text-2xl font-extrabold leading-tight text-white md:text-4xl">
-          비교하고 고르는<br className="md:hidden" /> 스마트한 쇼핑
-        </h1>
-        <p className="mt-2 text-sm text-blue-200/80 md:text-base">
-          스펙 기반 비교 분석 — 가전, 자동차용품, 캠핑장비
-        </p>
+      {/* ── Hero: Featured Article ── */}
+      {featured && (
+        <section className="-mx-4 -mt-6 mb-10">
+          <Link
+            href={`/blog/${featured.slug}`}
+            className="group relative block overflow-hidden bg-gray-900"
+          >
+            {/* Background Image */}
+            {featured.thumbnail_url && (
+              <div className="absolute inset-0">
+                <Image
+                  src={featured.thumbnail_url}
+                  alt={featured.title}
+                  fill
+                  sizes="100vw"
+                  className="object-cover opacity-40 transition-transform duration-500 group-hover:scale-105"
+                  priority
+                />
+              </div>
+            )}
+            {/* Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/60 to-transparent" />
 
-        {/* Category Cards in Hero */}
-        <div className="mx-auto mt-6 grid max-w-xl grid-cols-3 gap-3">
-          {categories.map((cat) => {
-            const meta = CATEGORY_META[cat.slug];
-            return (
-              <a
-                key={cat.slug}
-                href={`#cat-${cat.slug}`}
-                className="group flex flex-col items-center gap-1.5 rounded-2xl bg-white/10 px-3 py-4 backdrop-blur-sm transition-all hover:bg-white/20 hover:scale-105"
-              >
-                <span className="text-3xl md:text-4xl">{meta?.icon}</span>
-                <span className="text-xs font-semibold text-white md:text-sm">{cat.name}</span>
-              </a>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Category Sections */}
-      {collectionsMap.map(({ category, collections }, idx) => (
-        <CategorySection
-          key={category.id}
-          category={category}
-          collections={collections}
-          isFirst={idx === 0}
-        />
-      ))}
-
-      {/* Latest Reviews */}
-      {posts.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900">최신 리뷰</h2>
-            <Link href="/blog" className="text-sm font-medium text-blue-600 hover:text-blue-800">
-              전체 보기 →
-            </Link>
-          </div>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {posts.map((post) => (
-              <Link
-                key={post.id}
-                href={`/blog/${post.slug}`}
-                className="group flex gap-3 rounded-xl border border-gray-100 bg-white p-3 transition-all hover:border-gray-300 hover:shadow-sm"
-              >
-                {post.thumbnail_url && (
-                  <div className="relative h-[72px] w-[72px] flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
-                    <Image
-                      src={post.thumbnail_url}
-                      alt={post.title}
-                      fill
-                      sizes="72px"
-                      className="object-cover"
-                    />
-                  </div>
+            {/* Content */}
+            <div className="relative mx-auto max-w-3xl px-6 pb-10 pt-32 text-center md:pb-14 md:pt-44">
+              {featuredCategory && (
+                <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${CATEGORY_META[featuredCategory.slug]?.tag || 'bg-gray-100 text-gray-700'}`}>
+                  {featuredCategory.name}
+                </span>
+              )}
+              <h1 className="mt-3 text-2xl font-extrabold leading-tight text-white md:text-4xl">
+                {featured.title}
+              </h1>
+              {featured.excerpt && (
+                <p className="mt-3 text-sm leading-relaxed text-gray-300 line-clamp-2 md:text-base">
+                  {featured.excerpt}
+                </p>
+              )}
+              <div className="mt-4 flex items-center justify-center gap-3 text-xs text-gray-400">
+                <span>{featured.author_name}</span>
+                <span>·</span>
+                <span>
+                  {featured.published_at
+                    ? new Date(featured.published_at).toLocaleDateString('ko-KR')
+                    : ''}
+                </span>
+                {featured.reading_time_min && (
+                  <>
+                    <span>·</span>
+                    <span>{featured.reading_time_min}분 읽기</span>
+                  </>
                 )}
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold leading-snug text-gray-900 line-clamp-2 group-hover:text-blue-600">
-                    {post.title}
-                  </p>
-                  {post.excerpt && (
-                    <p className="mt-1 text-xs text-gray-400 line-clamp-1">{post.excerpt}</p>
-                  )}
-                  <p className="mt-1 text-[11px] text-gray-300">
-                    {post.published_at
-                      ? new Date(post.published_at).toLocaleDateString('ko-KR')
-                      : ''}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
+              </div>
+            </div>
+          </Link>
         </section>
       )}
+
+      <div className="space-y-12">
+        {/* ── Category Sections: Editorial Grid ── */}
+        {categoryPosts.map(({ category, posts }) => (
+          <CategoryEditorial key={category.id} category={category} posts={posts} />
+        ))}
+
+        {/* ── 전체 최신 리뷰 ── */}
+        {latestPosts.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between border-b border-gray-200 pb-3">
+              <h2 className="text-lg font-bold text-gray-900">최신 리뷰</h2>
+              <Link href="/blog" className="text-sm font-medium text-gray-400 hover:text-gray-700">
+                전체 보기 →
+              </Link>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-3">
+              {latestPosts.map((post) => (
+                <ArticleCard key={post.id} post={post} />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
     </div>
   );
 }
 
-/* ─── Category Section with Horizontal Scroll ─── */
+/* ─── Category Editorial Section ─── */
 
-function CategorySection({
+function CategoryEditorial({
   category,
-  collections,
-  isFirst,
+  posts,
 }: {
   category: Category;
-  collections: CollectionWithStats[];
-  isFirst: boolean;
+  posts: Post[];
 }) {
-  if (collections.length === 0) return null;
+  if (posts.length === 0) return null;
 
-  const meta = CATEGORY_META[category.slug] || { icon: '📦', color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-200' };
-  const [featured, ...rest] = collections;
+  const meta = CATEGORY_META[category.slug] || { icon: '📦', accent: 'text-gray-600', tag: 'bg-gray-100 text-gray-700' };
+  const [lead, ...rest] = posts;
 
   return (
-    <section id={`cat-${category.slug}`} className="scroll-mt-24">
+    <section>
       {/* Section Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between border-b border-gray-200 pb-3">
         <div className="flex items-center gap-2">
-          <span className="text-2xl">{meta.icon}</span>
+          <span className="text-xl">{meta.icon}</span>
           <h2 className="text-lg font-bold text-gray-900">{category.name}</h2>
         </div>
         <Link
@@ -182,114 +166,101 @@ function CategorySection({
         </Link>
       </div>
 
-      {/* Featured Card (first collection, larger) */}
-      <Link
-        href={`/l/${featured.slug}`}
-        className={`group mt-3 flex overflow-hidden rounded-2xl border-2 ${meta.border} ${meta.bg} transition-shadow hover:shadow-lg`}
-      >
-        <div className="relative hidden h-auto w-[200px] flex-shrink-0 sm:block">
-          {featured.thumbnail_url ? (
-            <Image
-              src={featured.thumbnail_url}
-              alt={featured.title}
-              fill
-              sizes="200px"
-              className="object-contain p-4"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-5xl opacity-30">
-              {meta.icon}
-            </div>
-          )}
-        </div>
-        <div className="flex flex-1 flex-col justify-center p-4 sm:p-5">
-          <span className={`text-xs font-bold uppercase tracking-wide ${meta.color}`}>
-            PICK
-          </span>
-          <p className="mt-1 text-base font-bold text-gray-900 group-hover:text-gray-700 sm:text-lg">
-            {featured.title}
-          </p>
-          {featured.meta_description && (
-            <p className="mt-1 text-sm text-gray-500 line-clamp-2">
-              {featured.meta_description}
-            </p>
-          )}
-          <div className="mt-2 flex items-center gap-3">
-            {featured.product_count > 0 && (
-              <span className="text-xs text-gray-400">{featured.product_count}개 제품 비교</span>
+      <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-12">
+        {/* Lead Article — large */}
+        <div className="md:col-span-7">
+          <Link href={`/blog/${lead.slug}`} className="group block">
+            {lead.thumbnail_url && (
+              <div className="relative aspect-[16/9] overflow-hidden rounded-xl bg-gray-100">
+                <Image
+                  src={lead.thumbnail_url}
+                  alt={lead.title}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 58vw"
+                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+              </div>
             )}
-            {priceRange(featured.min_price, featured.max_price) && (
-              <span className="text-xs font-semibold text-orange-500">
-                {priceRange(featured.min_price, featured.max_price)}
+            <div className="mt-3">
+              <span className={`text-xs font-semibold ${meta.accent}`}>
+                {category.name}
               </span>
-            )}
-          </div>
+              <h3 className="mt-1 text-xl font-bold leading-snug text-gray-900 group-hover:text-gray-600">
+                {lead.title}
+              </h3>
+              {lead.excerpt && (
+                <p className="mt-2 text-sm leading-relaxed text-gray-500 line-clamp-2">
+                  {lead.excerpt}
+                </p>
+              )}
+              <p className="mt-2 text-xs text-gray-400">
+                {lead.author_name} · {lead.published_at ? new Date(lead.published_at).toLocaleDateString('ko-KR') : ''}
+              </p>
+            </div>
+          </Link>
         </div>
-      </Link>
 
-      {/* Horizontal Scroll Cards */}
-      {rest.length > 0 && (
-        <div className="relative mt-3">
-          <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 scrollbar-hide snap-x snap-mandatory md:mx-0 md:px-0">
-            {rest.map((col, i) => (
-              <CollectionCard key={col.id} collection={col} meta={meta} rank={i + 2} />
-            ))}
-          </div>
+        {/* Side Articles — stacked list */}
+        <div className="flex flex-col gap-4 md:col-span-5">
+          {rest.map((post) => (
+            <Link
+              key={post.id}
+              href={`/blog/${post.slug}`}
+              className="group flex gap-4 border-b border-gray-100 pb-4 last:border-0"
+            >
+              {post.thumbnail_url && (
+                <div className="relative h-20 w-28 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
+                  <Image
+                    src={post.thumbnail_url}
+                    alt={post.title}
+                    fill
+                    sizes="112px"
+                    className="object-cover"
+                  />
+                </div>
+              )}
+              <div className="flex flex-1 flex-col justify-center">
+                <h4 className="text-sm font-bold leading-snug text-gray-900 line-clamp-2 group-hover:text-gray-600">
+                  {post.title}
+                </h4>
+                <p className="mt-1 text-xs text-gray-400">
+                  {post.published_at ? new Date(post.published_at).toLocaleDateString('ko-KR') : ''}
+                  {post.reading_time_min ? ` · ${post.reading_time_min}분` : ''}
+                </p>
+              </div>
+            </Link>
+          ))}
         </div>
-      )}
+      </div>
     </section>
   );
 }
 
-/* ─── Collection Card (horizontal scroll item) ─── */
+/* ─── Reusable Article Card ─── */
 
-function CollectionCard({
-  collection,
-  meta,
-  rank,
-}: {
-  collection: CollectionWithStats;
-  meta: { icon: string; color: string; bg: string; border: string };
-  rank: number;
-}) {
-  const price = priceRange(collection.min_price, collection.max_price);
-
+function ArticleCard({ post }: { post: Post }) {
   return (
-    <Link
-      href={`/l/${collection.slug}`}
-      className="group flex w-[160px] flex-shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-gray-200 bg-white transition-all hover:border-gray-300 hover:shadow-md sm:w-[180px]"
-    >
-      {/* Thumbnail */}
-      <div className="relative aspect-[4/3] bg-gray-50">
-        {collection.thumbnail_url ? (
+    <Link href={`/blog/${post.slug}`} className="group block">
+      {post.thumbnail_url && (
+        <div className="relative aspect-[16/9] overflow-hidden rounded-xl bg-gray-100">
           <Image
-            src={collection.thumbnail_url}
-            alt={collection.title}
+            src={post.thumbnail_url}
+            alt={post.title}
             fill
-            sizes="180px"
-            className="object-contain p-2"
+            sizes="(max-width: 768px) 100vw, 33vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
-        ) : (
-          <div className="flex h-full items-center justify-center text-2xl opacity-20">
-            {meta.icon}
-          </div>
-        )}
-      </div>
-
-      {/* Info */}
-      <div className="flex flex-1 flex-col p-2.5">
-        <p className="text-[13px] font-semibold leading-tight text-gray-800 line-clamp-2 group-hover:text-gray-600">
-          {collection.title}
-        </p>
-        <div className="mt-auto pt-2">
-          {price && (
-            <p className="text-xs font-bold text-orange-500">{price}</p>
-          )}
-          {collection.product_count > 0 && (
-            <p className="text-[11px] text-gray-400">{collection.product_count}개 제품</p>
-          )}
         </div>
-      </div>
+      )}
+      <h3 className="mt-3 text-sm font-bold leading-snug text-gray-900 line-clamp-2 group-hover:text-gray-600">
+        {post.title}
+      </h3>
+      {post.excerpt && (
+        <p className="mt-1 text-xs text-gray-500 line-clamp-2">{post.excerpt}</p>
+      )}
+      <p className="mt-2 text-xs text-gray-400">
+        {post.author_name} · {post.published_at ? new Date(post.published_at).toLocaleDateString('ko-KR') : ''}
+      </p>
     </Link>
   );
 }
