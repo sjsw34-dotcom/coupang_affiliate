@@ -232,6 +232,63 @@ export async function getCollectionsByCategory(categoryId: string, limit = 10) {
   return data ?? [];
 }
 
+export interface CollectionWithStats extends Collection {
+  product_count: number;
+  min_price: number | null;
+  max_price: number | null;
+}
+
+export async function getCollectionsWithStatsByCategory(
+  categoryId: string,
+  limit = 10
+): Promise<CollectionWithStats[]> {
+  const { data: collections } = await supabase
+    .from('collections')
+    .select('id, slug, title, meta_description, thumbnail_url, published_at')
+    .eq('category_id', categoryId)
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+    .limit(limit)
+    .returns<Collection[]>();
+
+  if (!collections || collections.length === 0) return [];
+
+  const colIds = collections.map((c) => c.id);
+  const { data: cpRows } = await supabase
+    .from('collection_products')
+    .select('collection_id, product_id')
+    .in('collection_id', colIds);
+
+  if (!cpRows || cpRows.length === 0) {
+    return collections.map((c) => ({ ...c, product_count: 0, min_price: null, max_price: null }));
+  }
+
+  const productIds = [...new Set(cpRows.map((r) => r.product_id))];
+  const { data: products } = await supabase
+    .from('products')
+    .select('id, price')
+    .in('id', productIds)
+    .eq('is_active', true);
+
+  const priceMap = new Map<string, number>();
+  for (const p of products ?? []) {
+    if (p.price) priceMap.set(p.id, p.price);
+  }
+
+  return collections.map((col) => {
+    const colProducts = cpRows.filter((r) => r.collection_id === col.id);
+    const prices = colProducts
+      .map((r) => priceMap.get(r.product_id))
+      .filter((p): p is number => p != null);
+    return {
+      ...col,
+      product_count: colProducts.length,
+      min_price: prices.length > 0 ? Math.min(...prices) : null,
+      max_price: prices.length > 0 ? Math.max(...prices) : null,
+    };
+  });
+}
+
 export async function getTopProductsByEvents(limit = 12) {
   const { data } = await supabase
     .from('events')
