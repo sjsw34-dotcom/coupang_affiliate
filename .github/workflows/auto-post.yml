@@ -2,15 +2,13 @@ name: Auto Post Generator
 
 on:
   schedule:
-    # 하루 4회, 2시간 간격 (UTC 기준)
-    # 06:00 UTC = 15:00 KST
-    # 08:00 UTC = 17:00 KST
-    # 10:00 UTC = 19:00 KST
-    # 12:00 UTC = 21:00 KST
+    # 하루 3회, 8시간 간격 — 카테고리별 1포스트씩
+    # 22:00 UTC = 07:00 KST (아침)
+    - cron: '0 22 * * *'
+    # 06:00 UTC = 15:00 KST (오후)
     - cron: '0 6 * * *'
-    - cron: '0 8 * * *'
-    - cron: '0 10 * * *'
-    - cron: '0 12 * * *'
+    # 14:00 UTC = 23:00 KST (밤)
+    - cron: '0 14 * * *'
   workflow_dispatch:
     inputs:
       count:
