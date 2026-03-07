@@ -1,4 +1,4 @@
-export const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME || '추천가이드';
+export const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME || '철이네 추천몰';
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 export const NAV_ITEMS = [

@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import { SITE_NAME, SITE_URL } from '@/lib/constants';
 
 export const metadata: Metadata = {
-  title: '소개',
-  description: `${SITE_NAME} - 가전, 자동차용품, 캠핑용품 추천 전문 리뷰 사이트`,
+  title: '사이트 소개',
+  description: `${SITE_NAME} — 가전, 자동차용품, 캠핑장비를 스펙 기반으로 비교 분석하는 추천 리뷰 사이트입니다`,
   alternates: { canonical: `${SITE_URL}/about` },
 };
 
@@ -20,7 +20,7 @@ export default function AboutPage() {
     '@type': 'Organization',
     name: SITE_NAME,
     url: SITE_URL,
-    description: '가전, 자동차용품, 캠핑용품 추천 및 비교 리뷰 전문 사이트',
+    description: '가전, 자동차용품, 캠핑장비 추천 비교 사이트 — 스펙 비교, 실사용 리뷰, 최저가 정보까지 한눈에',
     foundingDate: '2026',
   };
 

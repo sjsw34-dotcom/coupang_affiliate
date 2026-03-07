@@ -10,8 +10,8 @@ const PER_PAGE = 12;
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: '블로그',
-  description: '가전, 자동차용품, 캠핑용품 추천 리뷰와 비교 분석 글 모음. 스펙 기반 제품 비교와 선택 가이드.',
+  title: '추천 리뷰 블로그',
+  description: '가전, 자동차용품, 캠핑장비 추천 리뷰 모음 | 실사용 비교 분석, 구매 가이드, 최저가 정보를 확인하세요',
   alternates: { canonical: `${SITE_URL}/blog` },
 };
 

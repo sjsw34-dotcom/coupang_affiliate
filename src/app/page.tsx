@@ -46,7 +46,7 @@ export default async function Home() {
     '@type': 'Organization',
     name: SITE_NAME,
     url: SITE_URL,
-    description: '가전, 자동차용품, 캠핑용품 전문 리뷰 매거진',
+    description: '가전, 자동차용품, 캠핑장비 추천 비교 사이트 — 스펙 비교, 실사용 리뷰, 최저가 정보까지 한눈에',
   };
 
   return (
