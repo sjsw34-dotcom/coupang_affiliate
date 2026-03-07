@@ -24,7 +24,7 @@ export default async function Home() {
     Promise.all(
       categories.map(async (cat) => {
         const [posts, collections] = await Promise.all([
-          getPostsByCategory(cat.id, 4),
+          getPostsByCategory(cat.id, 8),
           getCollectionsByCategory(cat.id, 6),
         ]);
         return { category: cat, posts, collections };
@@ -180,28 +180,32 @@ function CategorySection({
 
       {/* Posts (if any) */}
       {posts.length > 0 && (
-        <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {posts.map((post) => (
             <Link key={post.id} href={`/blog/${post.slug}`} className="group block">
-              {post.thumbnail_url && (
-                <div className="relative aspect-[16/9] overflow-hidden rounded-xl bg-gray-100">
+              <div className="relative aspect-[16/9] overflow-hidden rounded-lg bg-gray-100">
+                {post.thumbnail_url ? (
                   <Image
                     src={post.thumbnail_url}
                     alt={post.title}
                     fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                     className="object-cover transition-transform duration-300 group-hover:scale-105"
                   />
-                </div>
-              )}
-              <h3 className="mt-2.5 text-[15px] font-bold leading-snug text-gray-900 line-clamp-2 group-hover:text-gray-600">
+                ) : (
+                  <div className="flex h-full items-center justify-center text-2xl opacity-20">
+                    {meta.icon}
+                  </div>
+                )}
+              </div>
+              <h3 className="mt-2 text-sm font-bold leading-snug text-gray-900 line-clamp-2 group-hover:text-gray-600">
                 {post.title}
               </h3>
               {post.excerpt && (
-                <p className="mt-1 text-xs text-gray-500 line-clamp-2">{post.excerpt}</p>
+                <p className="mt-1 hidden text-xs text-gray-500 line-clamp-2 sm:block">{post.excerpt}</p>
               )}
-              <p className="mt-1.5 text-xs text-gray-400">
-                {post.author_name} · {post.published_at ? new Date(post.published_at).toLocaleDateString('ko-KR') : ''}
+              <p className="mt-1 text-xs text-gray-400">
+                {post.published_at ? new Date(post.published_at).toLocaleDateString('ko-KR') : ''}
               </p>
             </Link>
           ))}
@@ -214,7 +218,7 @@ function CategorySection({
           {posts.length > 0 && (
             <h3 className="mb-3 text-sm font-semibold text-gray-500">추천 가이드</h3>
           )}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {collections.map((col) => (
               <Link
                 key={col.id}

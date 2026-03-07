@@ -98,7 +98,7 @@ export default async function CategoryPage({ params }: Props) {
       {posts.length > 0 && (
         <section className="mt-8">
           <h2 className="text-lg font-bold text-gray-900">관련 글</h2>
-          <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {posts.map((post) => (
               <Link
                 key={post.id}
