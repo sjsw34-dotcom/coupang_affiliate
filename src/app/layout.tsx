@@ -46,6 +46,7 @@ export default function RootLayout({
     <html lang="ko">
       <head>
         <link rel="alternate" hrefLang="ko-KR" href={SITE_URL} />
+        <link rel="alternate" type="application/rss+xml" title={SITE_NAME} href={`${SITE_URL}/feed.xml`} />
       </head>
       <body className={`${notoSansKR.variable} font-sans antialiased`}>
         <script
