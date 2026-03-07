@@ -1,0 +1,60 @@
+name: Auto Post Generator
+
+on:
+  schedule:
+    # 하루 4회, 2시간 간격 (UTC 기준)
+    # 06:00 UTC = 15:00 KST
+    # 08:00 UTC = 17:00 KST
+    # 10:00 UTC = 19:00 KST
+    # 12:00 UTC = 21:00 KST
+    - cron: '0 6 * * *'
+    - cron: '0 8 * * *'
+    - cron: '0 10 * * *'
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+    inputs:
+      count:
+        description: 'Number of posts to generate'
+        required: false
+        default: '1'
+      category:
+        description: 'Category (electronics, car-accessories, camping-outdoor)'
+        required: false
+        default: ''
+
+concurrency:
+  group: auto-post
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate post
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          COUPANG_PARTNERS_ACCESS_KEY: ${{ secrets.COUPANG_PARTNERS_ACCESS_KEY }}
+          COUPANG_PARTNERS_SECRET_KEY: ${{ secrets.COUPANG_PARTNERS_SECRET_KEY }}
+        run: |
+          if [ -n "${{ github.event.inputs.category }}" ]; then
+            npx tsx scripts/generate-posts.ts --count ${{ github.event.inputs.count || '1' }} --category ${{ github.event.inputs.category }}
+          else
+            npx tsx scripts/generate-posts.ts --count ${{ github.event.inputs.count || '1' }}
+          fi

@@ -639,3 +639,137 @@ ADMIN_SECRET=  (for protecting /admin routes)
 - Error boundaries on dynamic pages
 - Consistent naming: camelCase for variables, PascalCase for components, kebab-case for files
 - Git commit messages: conventional commits (feat:, fix:, chore:)
+
+
+# 프로젝트: sajumuse.com 쿠팡파트너스 자동 포스팅 확장
+
+## 중요 원칙
+- 이 프로젝트는 **기존 sajumuse.com에 기능을 추가**하는 작업이다
+- 기존 파일을 수정하기 전에 반드시 현재 구조를 먼저 확인한다
+- 새 기능은 기존 코드에 영향을 주지 않는 독립적 디렉토리/파일로 추가한다
+- 모든 작업은 단계별로 진행하며, 한 번에 대규모 변경을 하지 않는다
+
+## 작업 요청 시 반드시 따를 절차
+
+### 1단계: 현황 파악 (모든 작업 전 필수)
+```
+작업 시작 전 아래를 먼저 확인할 것:
+- 프로젝트 루트의 디렉토리 구조 확인 (ls, tree)
+- package.json 확인 (설치된 패키지, 스크립트)
+- app/ 디렉토리 구조 확인 (기존 라우트 파악)
+- 기존 컴포넌트, lib, utils 구조 확인
+- tailwind.config, next.config 등 설정 파일 확인
+- .env.local 또는 .env.example 확인
+```
+
+### 2단계: 충돌 체크
+```
+새 파일/디렉토리 추가 시:
+- 동일한 이름의 파일/폴더가 이미 있는지 확인
+- 기존 라우트와 겹치는 경로가 없는지 확인
+- import 경로가 기존 코드와 충돌하지 않는지 확인
+
+기존 파일 수정 시:
+- 수정 전 해당 파일 전체 내용을 먼저 읽고 파악
+- 변경할 부분만 최소한으로 수정
+- 수정 전후 diff를 보여주고 확인 요청
+```
+
+### 3단계: 작업 실행
+```
+- 새 파일 생성은 자유롭게 진행
+- 기존 파일 수정은 변경 범위를 먼저 설명 후 진행
+- 한 번에 하나의 기능 단위로만 작업
+```
+
+## 추가할 기능 개요
+
+### 블로그 시스템 (sajumuse.com/blog)
+- MDX 기반 블로그 포스트 시스템
+- 블로그 목록/상세 페이지
+- 쿠팡 상품 카드 컴포넌트
+- SEO 메타태그
+
+### 자동 포스팅 파이프라인
+- 쿠팡파트너스 API 연동 (HMAC 인증)
+- Claude API로 글 자동 생성
+- GitHub Actions로 매일 자동 실행
+- MDX 파일 자동 생성 & git push → Vercel 자동 배포
+
+### 핵심 사양
+- 하루 5개 이상 포스팅
+- 쿠팡파트너스 API 키 사용
+- Vercel 무료 플랜 유지
+- GitHub Actions 무료 범위 내 운영
+
+## 환경변수 (추가 필요)
+```
+COUPANG_ACCESS_KEY=        # 쿠팡파트너스 Access Key
+COUPANG_SECRET_KEY=        # 쿠팡파트너스 Secret Key
+COUPANG_PARTNER_ID=        # 쿠팡파트너스 파트너 ID
+ANTHROPIC_API_KEY=         # Claude API 키 (기존에 있을 수 있음)
+```
+
+## 추가할 디렉토리 (기존 구조에 병합)
+```
+sajumuse.com/
+├── content/
+│   └── blog/                # [신규] 자동 생성 MDX 포스트 저장
+├── scripts/
+│   ├── generate-posts.ts    # [신규] 자동 포스팅 메인 스크립트
+│   ├── coupang-api.ts       # [신규] 쿠팡 API 모듈
+│   ├── claude-writer.ts     # [신규] Claude 글생성 모듈
+│   ├── mdx-manager.ts       # [신규] MDX 파일 관리
+│   └── categories.json      # [신규] 상품 카테고리 설정
+├── app/
+│   └── blog/                # [신규] 블로그 라우트
+│       ├── page.tsx
+│       └── [slug]/
+│           └── page.tsx
+├── components/
+│   └── blog/                # [신규] 블로그 전용 컴포넌트
+├── lib/
+│   ├── blog-utils.ts        # [신규] MDX 파싱 유틸
+│   └── coupang-helpers.ts   # [신규] 쿠팡 링크 헬퍼
+└── .github/
+    └── workflows/
+        └── auto-post.yml    # [신규] GitHub Actions
+```
+
+## MDX 포스트 형식
+```mdx
+---
+title: "포스트 제목"
+description: "메타 설명"
+date: "2026-03-07"
+category: "카테고리"
+keywords: ["키워드1", "키워드2"]
+products:
+  - name: "상품명"
+    price: 29900
+    rating: 4.5
+    reviewCount: 1234
+    coupangUrl: "https://link.coupang.com/..."
+    imageUrl: "https://..."
+slug: "post-slug"
+---
+
+본문...
+```
+
+## 코딩 규칙
+- TypeScript strict 모드
+- 기존 프로젝트의 코딩 스타일을 따른다 (먼저 기존 코드 패턴 확인)
+- 에러 처리: try-catch 필수
+- 쿠팡 API 호출 시 요청 간 1초 딜레이
+- Claude API: model은 claude-sonnet-4-20250514, max_tokens 2000
+- 커밋 메시지: feat: / fix: / content: / chore: prefix 사용
+- 쿠팡파트너스 문구 필수: "이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다"
+
+## 작업 요청 예시
+마스터가 아래와 같이 요청하면 위 절차에 따라 진행:
+- "블로그 기본 구조 만들어줘" → Phase 1
+- "쿠팡 API 연동해줘" → Phase 2
+- "글 자동 생성 기능 만들어줘" → Phase 3
+- "GitHub Actions 세팅해줘" → Phase 4
+- "SEO 최적화 해줘" → Phase 5

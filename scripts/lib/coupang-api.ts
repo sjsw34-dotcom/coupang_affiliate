@@ -1,3 +1,7 @@
+/**
+ * Coupang Partners API — standalone version (no Next.js dependency)
+ * Mirrors src/lib/coupang-api.ts
+ */
 import crypto from 'crypto';
 
 interface CoupangProduct {
@@ -28,7 +32,6 @@ export interface CoupangSearchResult {
 
 const BASE_URL = 'https://api-gateway.coupang.com';
 
-// 기업용/업소용 상품 필터링 키워드
 const B2B_KEYWORDS = [
   '업소용', '산업용', '공업용', '영업용',
   '박스단위', '묶음배송', '100개입', '50개입', '30개입',
@@ -39,7 +42,6 @@ const B2B_KEYWORDS = [
   '3상', '380v', '동력',
 ];
 
-// 개인 소비자 타겟이 아닌 상품인지 판별
 function isB2BProduct(product: CoupangProduct): boolean {
   const name = product.productName.toLowerCase();
   return B2B_KEYWORDS.some((kw) => name.includes(kw.toLowerCase()));
@@ -73,7 +75,6 @@ function getAuthHeader(method: string, path: string, query: string): string {
 }
 
 export async function searchProducts(keyword: string, limit = 10): Promise<CoupangSearchResult> {
-  // 넉넉하게 요청해서 B2B 필터링 후에도 원하는 개수 확보
   const fetchLimit = Math.min(limit * 2, 20);
   const path = '/v2/providers/affiliate_open_api/apis/openapi/products/search';
   const query = `keyword=${encodeURIComponent(keyword)}&limit=${fetchLimit}`;
@@ -81,9 +82,7 @@ export async function searchProducts(keyword: string, limit = 10): Promise<Coupa
 
   const res = await fetch(`${BASE_URL}${path}?${query}`, {
     method: 'GET',
-    headers: {
-      Authorization: authorization,
-    },
+    headers: { Authorization: authorization },
   });
 
   if (!res.ok) {
