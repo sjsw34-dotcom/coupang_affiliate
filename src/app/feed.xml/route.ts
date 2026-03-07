@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { SITE_NAME, SITE_URL } from '@/lib/constants';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 3600; // 1시간마다 갱신
 
 export async function GET() {
   const { data: posts } = await supabase

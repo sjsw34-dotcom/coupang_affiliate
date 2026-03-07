@@ -5,7 +5,7 @@ import { SITE_URL } from '@/lib/constants';
 import ProductCard from '@/components/ui/product-card';
 import AffiliateDisclosure from '@/components/ui/affiliate-disclosure';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 600; // ISR: 10분마다 갱신
 
 export const metadata: Metadata = {
   title: '할인/특가',

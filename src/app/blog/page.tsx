@@ -7,7 +7,7 @@ import type { Category } from '@/lib/types';
 
 const PER_PAGE = 12;
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 600; // ISR: 10분마다 갱신
 
 export const metadata: Metadata = {
   title: '추천 리뷰 블로그',

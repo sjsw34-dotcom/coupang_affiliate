@@ -9,7 +9,7 @@ import {
 import { SITE_NAME, SITE_URL } from '@/lib/constants';
 import type { Category, Post, Collection } from '@/lib/types';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 600; // ISR: 10분마다 갱신
 
 const CATEGORY_META: Record<string, { icon: string; accent: string; tag: string }> = {
   electronics: { icon: '💻', accent: 'text-blue-600', tag: 'bg-blue-50 text-blue-700' },
