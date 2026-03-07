@@ -8,6 +8,8 @@ import {
   getAllCategorySlugs,
 } from '@/lib/queries';
 import { SITE_URL } from '@/lib/constants';
+
+export const revalidate = 600; // ISR: 10분마다 갱신
 import Breadcrumb from '@/components/ui/breadcrumb';
 
 interface Props {

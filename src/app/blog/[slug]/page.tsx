@@ -23,6 +23,8 @@ import SituationPicks from '@/components/ui/situation-picks';
 import FinalCtaBanner from '@/components/ui/final-cta-banner';
 import MarkdownRenderer from '@/components/blog/markdown-renderer';
 
+export const revalidate = 600; // ISR: 10분마다 갱신
+
 interface Props {
   params: Promise<{ slug: string }>;
 }
@@ -100,16 +102,15 @@ export default async function BlogPost({ params }: Props) {
   ]);
 
   const productIds = postProducts.map((pp) => pp.product_id);
-  const products = await getProductsByIds(productIds);
+  const [products, collectionProductsData] = await Promise.all([
+    getProductsByIds(productIds),
+    collection ? getCollectionProducts(collection.id) : Promise.resolve([]),
+  ]);
 
   // Get collection products for mini_review data
-  let collectionMiniReviews: Record<string, string> = {};
-  if (collection) {
-    const cp = await getCollectionProducts(collection.id);
-    collectionMiniReviews = Object.fromEntries(
-      cp.filter((c) => c.mini_review).map((c) => [c.product_id, c.mini_review!])
-    );
-  }
+  const collectionMiniReviews: Record<string, string> = Object.fromEntries(
+    collectionProductsData.filter((c) => c.mini_review).map((c) => [c.product_id, c.mini_review!])
+  );
 
   // Parse template data from content
   const { templateData, cleanContent } = parseTemplateData(post.content);

@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
+export const revalidate = 600; // ISR: 10분마다 갱신
+
 import {
   getHubBySlug,
   getHubLinks,
