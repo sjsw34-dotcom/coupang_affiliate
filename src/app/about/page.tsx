@@ -105,7 +105,7 @@ export default function AboutPage() {
             제휴 문의, 제품 리뷰 요청, 또는 피드백은 아래 이메일로 보내주세요.
           </p>
           <p className="mt-1 font-medium text-gray-800">
-            contact@yourdomain.com
+            gogoxingrich@gmail.com
           </p>
         </section>
       </div>
