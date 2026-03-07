@@ -62,6 +62,118 @@ function getCategoryForRun(): CategorySlug {
   return CATEGORIES[index];
 }
 
+// --- Category collection slugs & titles ---
+const CATEGORY_COLLECTION: Record<string, { slug: string; title: string; description: string }> = {
+  electronics: {
+    slug: 'best-electronics',
+    title: '가전/IT 추천 TOP 제품',
+    description: '에디터가 직접 비교 분석한 가전/IT 인기 제품 모음. 스펙과 실사용 후기를 기반으로 엄선했습니다.',
+  },
+  'car-accessories': {
+    slug: 'best-car-accessories',
+    title: '자동차 용품 추천 TOP 제품',
+    description: '운전자를 위한 필수 차량 용품 모음. 실제 사용 경험과 스펙 비교로 선정했습니다.',
+  },
+  'camping-outdoor': {
+    slug: 'best-camping-outdoor',
+    title: '캠핑/아웃도어 추천 TOP 제품',
+    description: '캠핑과 아웃도어 활동에 꼭 필요한 장비 모음. 현장에서 검증된 제품만 추천합니다.',
+  },
+};
+
+// --- Add products to category-level collection ---
+async function addToCategoryCollection(
+  supabase: ReturnType<typeof getSupabase>,
+  categorySlug: string,
+  categoryId: string,
+  insertedProducts: { id: string }[],
+  generated: { products: { pick_label: string; emotion_summary: string; rank: number }[]; meta_description: string },
+  thumbnailUrl: string | null,
+): Promise<string | null> {
+  const collInfo = CATEGORY_COLLECTION[categorySlug];
+  if (!collInfo) return null;
+
+  // Find or create the category collection
+  const { data: existing } = await supabase
+    .from('collections')
+    .select('id')
+    .eq('slug', collInfo.slug)
+    .single();
+
+  let collectionId: string;
+
+  if (existing) {
+    collectionId = existing.id;
+    // Update thumbnail to latest product image
+    if (thumbnailUrl) {
+      await supabase
+        .from('collections')
+        .update({ thumbnail_url: thumbnailUrl, updated_at: new Date().toISOString() })
+        .eq('id', collectionId);
+    }
+  } else {
+    // Create category collection
+    const { data: newCol, error } = await supabase
+      .from('collections')
+      .insert({
+        slug: collInfo.slug,
+        title: collInfo.title,
+        meta_description: collInfo.description.substring(0, 120),
+        description: collInfo.description,
+        category_id: categoryId,
+        thumbnail_url: thumbnailUrl,
+        status: 'published',
+        published_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single();
+
+    if (error || !newCol) {
+      console.log(`  Failed to create category collection: ${error?.message}`);
+      return null;
+    }
+    collectionId = newCol.id;
+  }
+
+  // Get current max rank in this collection
+  const { data: existingCp } = await supabase
+    .from('collection_products')
+    .select('rank')
+    .eq('collection_id', collectionId)
+    .order('rank', { ascending: false })
+    .limit(1);
+
+  const maxRank = existingCp?.[0]?.rank ?? 0;
+
+  // Check for duplicate products (avoid re-adding same product)
+  const newProductIds = insertedProducts.map((p) => p.id);
+  const { data: alreadyInCollection } = await supabase
+    .from('collection_products')
+    .select('product_id')
+    .eq('collection_id', collectionId)
+    .in('product_id', newProductIds);
+
+  const existingProductIds = new Set((alreadyInCollection ?? []).map((r) => r.product_id));
+  const toAdd = insertedProducts.filter((p) => !existingProductIds.has(p.id));
+
+  if (toAdd.length > 0) {
+    const cpInserts = toAdd.map((prod, i) => {
+      const genIndex = insertedProducts.indexOf(prod);
+      return {
+        collection_id: collectionId,
+        product_id: prod.id,
+        rank: maxRank + i + 1,
+        pick_label: generated.products[genIndex]?.pick_label ?? null,
+        mini_review: generated.products[genIndex]?.emotion_summary ?? null,
+      };
+    });
+    await supabase.from('collection_products').insert(cpInserts);
+    console.log(`  Added ${toAdd.length} products to ${collInfo.slug} (total: ${maxRank + toAdd.length})`);
+  }
+
+  return collectionId;
+}
+
 // --- Random publish time ---
 function getRandomPublishedAt(): string {
   const now = new Date();
@@ -180,34 +292,13 @@ async function generateFromDbFallback(
   const content = `> ${AFFILIATE_DISCLOSURE}\n\n<!--TEMPLATE:${JSON.stringify(templateData)}-->\n${generated.content}`;
   const pubDate = getRandomPublishedAt();
 
-  // Insert collection
-  const collSlug = `${slug}-top`;
-  const { data: collection } = await supabase
-    .from('collections')
-    .insert({
-      slug: collSlug,
-      title: `${keyword} TOP ${top5.length}`,
-      meta_description: generated.meta_description,
-      description: generated.hero_subtitle,
-      category_id: category.id,
-      thumbnail_url: top5[0].image_url,
-      status: 'published',
-      published_at: pubDate,
-      faq_json: generated.faq_json,
-    })
-    .select('id')
-    .single();
-
-  if (collection) {
-    const cpInserts = top5.map((p, i) => ({
-      collection_id: collection.id,
-      product_id: p.id,
-      rank: i + 1,
-      pick_label: generated.products[i]?.pick_label ?? null,
-      mini_review: generated.products[i]?.emotion_summary ?? null,
-    }));
-    await supabase.from('collection_products').insert(cpInserts);
-  }
+  // Add to category collection
+  const collectionId = await addToCategoryCollection(
+    supabase, categorySlug, category.id,
+    top5.map((p) => ({ id: p.id })),
+    generated,
+    top5[0].image_url,
+  );
 
   // Insert post
   const { data: post, error: postError } = await supabase
@@ -217,7 +308,7 @@ async function generateFromDbFallback(
       title: generated.title,
       meta_description: generated.meta_description,
       category_id: category.id,
-      primary_collection_id: collection?.id ?? null,
+      primary_collection_id: collectionId,
       content,
       excerpt: generated.hero_subtitle,
       thumbnail_url: top5[0].image_url,
@@ -334,39 +425,12 @@ async function generateOnePost(
     return { keyword, slug, category: categorySlug, ok: false, error: prodError?.message };
   }
 
-  // 7. Insert collection
-  const collectionSlug = `${slug}-top`;
-  const { data: collection, error: colError } = await supabase
-    .from('collections')
-    .insert({
-      slug: collectionSlug,
-      title: `${keyword} TOP ${generated.products.length}`,
-      meta_description: generated.meta_description,
-      description: generated.hero_subtitle,
-      category_id: category.id,
-      thumbnail_url: firstProductImage,
-      status: 'published',
-      published_at: new Date().toISOString(),
-      faq_json: generated.faq_json,
-    })
-    .select('id')
-    .single();
+  // 7. Add to category collection (instead of creating per-post collection)
+  const collectionId = await addToCategoryCollection(
+    supabase, categorySlug, category.id, insertedProducts, generated, firstProductImage
+  );
 
-  if (colError || !collection) {
-    return { keyword, slug, category: categorySlug, ok: false, error: colError?.message };
-  }
-
-  // 8. collection_products
-  const cpInserts = insertedProducts.map((prod, i) => ({
-    collection_id: collection.id,
-    product_id: prod.id,
-    rank: generated.products[i]?.rank ?? i + 1,
-    pick_label: generated.products[i]?.pick_label ?? null,
-    mini_review: generated.products[i]?.emotion_summary ?? null,
-  }));
-  await supabase.from('collection_products').insert(cpInserts);
-
-  // 9. Insert post
+  // 8. Insert post
   const { data: post, error: postError } = await supabase
     .from('posts')
     .insert({
@@ -374,7 +438,7 @@ async function generateOnePost(
       title: generated.title,
       meta_description: generated.meta_description,
       category_id: category.id,
-      primary_collection_id: collection.id,
+      primary_collection_id: collectionId,
       content: contentWithTemplate,
       excerpt: generated.hero_subtitle,
       thumbnail_url: firstProductImage,
