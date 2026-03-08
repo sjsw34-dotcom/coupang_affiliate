@@ -15,6 +15,7 @@ import { searchProducts } from './lib/coupang-api';
 import { generateContent, getRecentTemplateIds } from './lib/content-generator';
 import { koreanToSlug } from './lib/slug-utils';
 import { requestIndexing } from './lib/google-indexing';
+import { requestIndexNow } from './lib/indexnow';
 
 const AFFILIATE_DISCLOSURE =
   '이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.';
@@ -332,8 +333,8 @@ async function generateFromDbFallback(
   }));
   await supabase.from('post_products').insert(ppInserts);
 
-  // Google Indexing API
-  await requestIndexing(slug);
+  // Google Indexing API + IndexNow (Naver, Bing)
+  await Promise.all([requestIndexing(slug), requestIndexNow(slug)]);
 
   return { keyword, slug, category: categorySlug, ok: true, source: 'db-fallback' };
 }
@@ -466,8 +467,8 @@ async function generateOnePost(
   }));
   await supabase.from('post_products').insert(ppInserts);
 
-  // Google Indexing API
-  await requestIndexing(slug);
+  // Google Indexing API + IndexNow (Naver, Bing)
+  await Promise.all([requestIndexing(slug), requestIndexNow(slug)]);
 
   return { keyword, slug, category: categorySlug, ok: true, source: 'coupang-api' };
 }
