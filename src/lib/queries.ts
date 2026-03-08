@@ -50,6 +50,16 @@ export async function getCategoryById(categoryId: string) {
   return data;
 }
 
+export async function getCategoriesByIds(ids: string[]) {
+  if (ids.length === 0) return [];
+  const { data } = await supabase
+    .from('categories')
+    .select('id, slug, name')
+    .in('id', ids)
+    .returns<Category[]>();
+  return data ?? [];
+}
+
 export async function getAllPublishedPostSlugs() {
   const { data } = await supabase
     .from('posts')

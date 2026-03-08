@@ -1,9 +1,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
-import { getPublishedPosts, getCategoryById } from '@/lib/queries';
+import { getPublishedPosts, getCategoriesByIds } from '@/lib/queries';
 import { SITE_URL } from '@/lib/constants';
-import type { Category } from '@/lib/types';
 
 const PER_PAGE = 12;
 
@@ -27,13 +26,10 @@ export default async function BlogIndex({ searchParams }: Props) {
   const { posts, total } = await getPublishedPosts(PER_PAGE, offset);
   const totalPages = Math.ceil(total / PER_PAGE);
 
-  // Fetch categories for each post
+  // Fetch categories in a single query
   const categoryIds = [...new Set(posts.map((p) => p.category_id))];
-  const categories = await Promise.all(categoryIds.map((id) => getCategoryById(id)));
-  const categoryMap = new Map<string, Category>();
-  for (const cat of categories) {
-    if (cat) categoryMap.set(cat.id, cat);
-  }
+  const categories = await getCategoriesByIds(categoryIds);
+  const categoryMap = new Map(categories.map((c) => [c.id, c]));
 
   return (
     <div>
