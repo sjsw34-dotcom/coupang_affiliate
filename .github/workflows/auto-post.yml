@@ -20,6 +20,9 @@ on:
         required: false
         default: ''
 
+permissions:
+  contents: read
+
 concurrency:
   group: auto-post
   cancel-in-progress: false
@@ -55,8 +58,12 @@ jobs:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           NEXT_PUBLIC_SITE_URL: https://chulmall.com
         run: |
-          if [ -n "${{ github.event.inputs.category }}" ]; then
-            npx tsx scripts/generate-posts.ts --count ${{ github.event.inputs.count || '1' }} --category ${{ github.event.inputs.category }}
+          COUNT="${{ github.event.inputs.count }}"
+          CATEGORY="${{ github.event.inputs.category }}"
+          COUNT="${COUNT:-1}"
+
+          if [ -n "$CATEGORY" ]; then
+            npx tsx scripts/generate-posts.ts --count "$COUNT" --category "$CATEGORY"
           else
-            npx tsx scripts/generate-posts.ts --count ${{ github.event.inputs.count || '1' }}
+            npx tsx scripts/generate-posts.ts --count "$COUNT"
           fi

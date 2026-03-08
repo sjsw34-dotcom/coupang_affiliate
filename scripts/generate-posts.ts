@@ -175,14 +175,9 @@ async function addToCategoryCollection(
   return collectionId;
 }
 
-// --- Random publish time ---
-function getRandomPublishedAt(): string {
-  const now = new Date();
-  const hours = [7, 10, 14, 19];
-  const hour = hours[Math.floor(Math.random() * hours.length)];
-  const minute = Math.floor(Math.random() * 50) + 5;
-  now.setUTCHours(hour - 9, minute, 0, 0);
-  return now.toISOString();
+// --- Publish time = now ---
+function getPublishedAt(): string {
+  return new Date().toISOString();
 }
 
 interface PostResult {
@@ -236,7 +231,7 @@ async function generateFromDbFallback(
 
   const available = [...keywordMap.entries()]
     .filter(([kw]) => !usedKeywords.has(kw))
-    .filter(([, prods]) => prods.length >= 3);
+    .filter(([, prods]) => prods.length >= 1);
 
   if (available.length === 0) {
     return { keyword: '', slug: '', category: categorySlug, ok: false, source: 'db-fallback', error: 'No unused keywords with enough products' };
@@ -291,7 +286,7 @@ async function generateFromDbFallback(
     })),
   };
   const content = `> ${AFFILIATE_DISCLOSURE}\n\n<!--TEMPLATE:${JSON.stringify(templateData)}-->\n${generated.content}`;
-  const pubDate = getRandomPublishedAt();
+  const pubDate = getPublishedAt();
 
   // Add to category collection
   const collectionId = await addToCategoryCollection(
@@ -447,7 +442,7 @@ async function generateOnePost(
       excerpt: generated.hero_subtitle,
       thumbnail_url: firstProductImage,
       status: 'published',
-      published_at: getRandomPublishedAt(),
+      published_at: getPublishedAt(),
       word_count: generated.content.length,
       reading_time_min: Math.max(1, Math.round(generated.content.length / 500)),
       faq_json: generated.faq_json,
