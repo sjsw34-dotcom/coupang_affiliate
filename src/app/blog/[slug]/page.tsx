@@ -160,26 +160,11 @@ export default async function BlogPost({ params }: Props) {
     })),
   };
 
-  const faqJsonLd = post.faq_json && post.faq_json.length > 0
-    ? {
-        '@context': 'https://schema.org',
-        '@type': 'FAQPage',
-        mainEntity: post.faq_json.map((faq) => ({
-          '@type': 'Question',
-          name: faq.question,
-          acceptedAnswer: { '@type': 'Answer', text: faq.answer },
-        })),
-      }
-    : null;
-
   return (
     <article className="mx-auto max-w-3xl">
       {/* JSON-LD */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
-      {faqJsonLd && (
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
-      )}
 
       {/* Breadcrumb */}
       <nav aria-label="breadcrumb" className="mb-4 text-sm text-gray-500">

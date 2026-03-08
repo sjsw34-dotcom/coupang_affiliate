@@ -109,19 +109,6 @@ export default async function ListPage({ params }: Props) {
     })),
   };
 
-  // JSON-LD: FAQPage
-  const faqJsonLd = collection.faq_json && collection.faq_json.length > 0
-    ? {
-        '@context': 'https://schema.org',
-        '@type': 'FAQPage',
-        mainEntity: collection.faq_json.map((faq) => ({
-          '@type': 'Question',
-          name: faq.question,
-          acceptedAnswer: { '@type': 'Answer', text: faq.answer },
-        })),
-      }
-    : null;
-
   // ComparisonTable data
   const comparisonColumns = ['제품명', '브랜드', '가격대', '평점', '핵심 장점'];
   function getComparisonValue(product: Product, column: string): string {
@@ -146,13 +133,6 @@ export default async function ListPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
-      {faqJsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-        />
-      )}
-
       {/* Breadcrumb */}
       <nav aria-label="breadcrumb" className="mb-4 text-sm text-gray-500">
         <ol className="flex flex-wrap items-center gap-1">
